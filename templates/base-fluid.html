@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>{% block title %}{% endblock %}</title>
+    <meta http-equiv="Cache-control" content="no-cache">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    {% assets "base_css" %}
+    <link rel="stylesheet" href="{{ ASSET_URL }}" />
+    {% endassets %}
+    <!-- Include Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    
+    {% block custom_css %}{% endblock %}
+    
+    {% assets "base_js" %}
+    <script type="text/javascript" src="{{ ASSET_URL }}"></script>
+    {% endassets %}
+    <!-- Include jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Include Flatpickr Library -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <!-- Include Plotly Library -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+    {% block custom_js %}{% endblock %}
+    <!-- Include Custom JavaScript -->
+    <script src="{{ url_for('static', filename='js/example.js') }}"></script>
+    
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <div class="container-fluid">
+        {% block container %}{% endblock %}
+    </div>
+
+    {% block jscript %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,32 @@
+.toolbar{
+	 font-size: .75em;
+}
+#statusbar{
+	position:fixed;
+	left: 0%;
+	bottom: 0%;
+	width: 200px;
+	border-radius: 0px;
+	opacity: 0.2;
+	font-family: Arial;
+	font-size: 14px;
+}
+.wrapper {
+	display: flex;
+	width: 100%;
+	align-items: stretch;
+}
+
+#year-box, #month-box, #day-box {
+  border-radius: 6px;
+  box-shadow: 0 0 6px rgba(0,0,0,0.1);
+  background-color: rgba(120, 120, 120, 0.95); /* very light grey with some transparency */
+  border: 1px solid #ddd;
+}
+
+.row h5 {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+
