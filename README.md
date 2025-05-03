@@ -169,10 +169,6 @@ You can also use the script directly via command line:
 # Generate movie for given date range
 python lwa-query-web_utils.py --gen movie --start 2025-04-25 --end 2025-05-01
 ```
-```bash
-# Default behavior (no --gen): general query or download processing
-python lwa-query-web_utils.py --start 2025-04-25 --end 2025-05-01
-```
 
 The output movies are named `slow_hdf_movie_YYYYMMDD.mp4`. Each movie may last ~5 minutes and take approximately **20 MB** of disk space.
 
