@@ -1,6 +1,6 @@
 # LWA Data Query Web Interface
 
-This repository contains a Flask-based web application for querying and visualizing solar data products from the OVRO-LWA (Owens Valley Radio Observatory - Long Wavelength Array). The system supports efficient database lookups for spectrogram and HDF imaging data and enables quick preview of available observations.
+This repository contains a Flask-based web application for querying and visualizing solar data products from the **OVRO-LWA Solar Data Pipeline** (Owens Valley Radio Observatory - Long Wavelength Array). The system supports efficient database lookups for spectrogram and HDF imaging data and enables quick preview of available observations.
 
 <img width="559" alt="image" src="https://github.com/user-attachments/assets/b180dbd6-07a8-4b37-9182-e706fa099c43" />
 
@@ -53,7 +53,7 @@ This will run the app on `http://127.0.0.1:2001`.
 
 For production deployment (e.g., `https://ovsa.njit.edu/lwadata-query/`), you may use `gunicorn`, Apache with mod_wsgi, or Nginx with a reverse proxy. Make sure the `static` and movie generation paths are correctly permissioned and mounted.
 
-## Folder Structure
+## Project Structure
 
 - `wsgi.py` — entry point for running the app
 - `routes.py` — defines app structure and blueprint
@@ -66,6 +66,132 @@ For production deployment (e.g., `https://ovsa.njit.edu/lwadata-query/`), you ma
 
 MIT License. See [LICENSE](LICENSE) for details.
 
+## Acknowledgments
+
+This tool leverages the **OVRO-LWA Solar Data Processing Pipeline**, developed in collaboration with [NJIT](https://www.njit.edu/) and [OVRO](https://www.astro.caltech.edu/ovro-lwa/). Special thanks to the developers of [`ovro-lwa-solar`](https://github.com/ovro-eovsa/ovro-lwa-solar).
+
 ## Maintainer
 
 Xingyao Chen – [xingyaochen0@github](https://github.com/xingyaochen0)
+
+
+## ✨ Key Features
+
+### 1. Query Interface for Solar Data Files
+
+Users can specify a custom time range and retrieve the available file paths for three key OVRO-LWA data products:
+
+- **`spec_fits`**:  
+  Daily spectrogram FITS files from beam-formed data, suitable for broadband dynamic spectral analysis.  
+  - **Time resolution**: ~1s  
+  - **Frequency resolution**: ~24 kHz
+
+- **`image_lev1_hdf`**:  
+  Level-1 solar imaging HDF5 files, providing multi-frequency images integrated over 10 seconds.  
+  - These can be converted to FITS format using the utility:  
+    [`recover_fits_from_h5`](https://github.com/ovro-eovsa/ovro-lwa-solar/blob/a9521ca5d4695c7fabf03e88aced5cf636d72ebe/ovrolwasolar/utils.py#L781)
+
+- **`image_lev15_hdf`**:  
+  Level-1.5 imaging files after applying ionospheric **refraction correction**.  
+  - Refraction-corrected output using: [`refraction_correction`](https://github.com/ovro-eovsa/ovro-lwa-solar/blob/main/ovrolwasolar/refraction_correction.py)
+
+Each category allows users to download a corresponding `.txt` list of URLs for automated downloading.
+
+#### 📥 Example WGET Commands
+
+```bash
+# Download all spec_fits files
+wget -i ovro-lwa_solar_spec_fits.txt
+
+# Save to a specific directory
+wget -P /your/download/path -i ovro-lwa_solar_spec_fits.txt
+
+# Resume interrupted downloads
+wget -c -i ovro-lwa_solar_spec_fits.txt
+```
+
+---
+
+### 2. Interactive Data Availability Overview
+
+The middle section of the page visualizes the **temporal coverage** of each file type within the selected time range.
+
+- Zoom-in capabilities allow precise inspection of data availability.
+- The legend displays the total number of files per category.
+- To handle high file counts and enhance responsiveness, the plotting is compressed using a custom `compress_time_segments()` function (see: [example.py](https://github.com/xingyaochen0/lwa-data-query-web/blob/main/blueprints/example.py)).
+
+---
+
+### 3. Daily Quicklook: Spectrogram and Movie
+
+At the bottom of the page, a "Quicklook" section displays:
+
+- **Spectrogram**: A visual overview of daily beam-formed intensity data.
+- **Imaging Movie**: A snapshot-based animation from imaging PNG files.
+
+If a daily movie (named as `slow_hdf_movie_YYYYMMDD_sub.mp4`) is not found, the server will automatically generate one in the background for the time interval **12:00–17:00 UT** of the selected start date, and store it in:
+
+```bash
+/static/movies/
+```
+
+Users can interactively **slide the movie playback bar** and **download the resulting movie**.
+
+
+
+---
+
+## ⚙️ CLI Utility
+
+You can also use the script directly via command line:
+
+### Example:
+
+```bash
+# Generate movie for given date range
+python lwa-query-web_utils.py --gen movie --start 2025-04-25 --end 2025-05-01
+
+# Default behavior (no --gen): general query or download processing
+python lwa-query-web_utils.py --start 2025-04-25 --end 2025-05-01
+```
+
+---
+
+## 🗄 Metadata Maintenance
+
+The metadata is maintained in a MySQL database:
+
+```
+DATABASE lwa_metadata_query;
+```
+
+To populate or update the metadata:
+
+```bash
+# Add entries for a given range (e.g., in a daily cron job)
+python lwadata2sql.py --start 2025-04-01T00:00:00 --end 2025-05-01T00:00:00
+
+# Manually delete records for a time range
+python lwadata2sql.py --start 2025-04-30T00:00:00 --end 2025-05-01T00:00:00 --delete
+```
+
+---
+
+## 🎞 Daily Movie Cronjob
+
+A cron job can also be configured to automatically generate daily movies stored in `/static/movies/`, using imaging PNGs from:
+
+```
+https://ovsa.njit.edu/lwa-data/qlook_images/slow/synop/
+```
+
+The output movies are named:
+```
+slow_hdf_movie_YYYYMMDD.mp4
+```
+
+Each movie may last ~5 minutes and take approximately **20 MB** of disk space.
+
+
+
+
