@@ -7,7 +7,7 @@ This repository contains a Flask-based web application for querying and visualiz
 ## Features
 
 - Query LWA observation metadata stored in MySQL.
-- Display available `.fits`, `lev1` and `lev15` HDF files.
+- Display available `spec_fits`, `image_lev1` and `image_lev15` HDF files.
 - Preview quicklook spectrograms and daily imaging movies.
 - Auto movie generation for selected dates using `ffmpeg`.
 
@@ -130,9 +130,8 @@ At the bottom of the page, a "Quicklook" section displays:
 - **Spectrogram**: A visual overview of daily beam-formed intensity data.
 - **Imaging Movie**: A snapshot-based animation from imaging PNG files.
 
-If a daily movie (named as `slow_hdf_movie_YYYYMMDD_sub.mp4`) is not found, the server will automatically generate one in the background for the time interval **12:00–17:00 UT** of the selected start date, and store it in `/static/movies/`.
-
-Users can interactively **slide the movie playback bar** and **download the resulting movie**.
+If a daily movie (named as `slow_hdf_movie_YYYYMMDD.mp4`) is not found, the server will automatically generate one in the background for the time interval **12:00–17:00 UT** of the selected start date, named as `slow_hdf_movie_YYYYMMDD_sub.mp4`, and store it in `/static/movies/`.
+Users can interactively use the **−1 Day** / **+1 Day** buttons to view the spectrogram and movie from adjacent days, **slide the movie playback bar**, and **download the resulting movie**.
 
 
 
