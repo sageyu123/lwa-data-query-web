@@ -9,7 +9,7 @@ import os
 hostname = socket.gethostname()
 
 if hostname == "ovsa":
-    app = Flask(__name__, static_folder='/var/www/html/lwaquery/static', static_url_path='/lwaquery/static')
+    app = Flask(__name__, static_folder='/var/www/html/lwadata-query/static', static_url_path='/lwadata-query/static')
 else:
     app = Flask(__name__)
 
