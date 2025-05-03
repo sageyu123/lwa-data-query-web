@@ -1,12 +1,12 @@
 # LWA Data Query Web Interface
 
-This repository contains a Flask-based web application for querying and visualizing data products from the OVRO-LWA (Owens Valley Radio Observatory - Long Wavelength Array). The system supports efficient database lookups for spectrogram and HDF imaging data and enables quick preview of available observations.
+This repository contains a Flask-based web application for querying and visualizing solar data products from the OVRO-LWA (Owens Valley Radio Observatory - Long Wavelength Array). The system supports efficient database lookups for spectrogram and HDF imaging data and enables quick preview of available observations.
 
 ## Features
 
 - Query LWA observation metadata stored in MySQL.
 - Display available `.fits`, `lev1` and `lev15` HDF files.
-- Preview quicklook spectrograms and generate daily imaging movies.
+- Preview quicklook spectrograms and daily imaging movies.
 - Auto movie generation for selected dates using `ffmpeg`.
 
 ## Getting Started
