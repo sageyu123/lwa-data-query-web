@@ -1,6 +1,6 @@
 # LWA Data Query Web Interface
 
-This repository contains a Flask-based web application for querying and visualizing solar data products from the **OVRO-LWA Solar Data Pipeline** (Owens Valley Radio Observatory - Long Wavelength Array). The system supports efficient database lookups for spectrogram and HDF imaging data and enables quick preview of available observations.
+This repository contains a Flask-based web application for querying and visualizing solar data products from the [**OVRO-LWA Solar Data Pipeline**](https://github.com/ovro-eovsa/ovro-lwa-solar) (Owens Valley Radio Observatory - Long Wavelength Array). The system supports efficient database lookups for spectrogram and HDF imaging data and enables quick preview of available observations.
 
 <img width="559" alt="image" src="https://github.com/user-attachments/assets/b180dbd6-07a8-4b37-9182-e706fa099c43" />
 
@@ -60,7 +60,7 @@ For production deployment (e.g., `https://ovsa.njit.edu/lwadata-query/`), you ma
 - `blueprints/example` — main application logic and routes
 - `static/movies/` — stores generated MP4 movies
 - `templates/` — HTML templates
-- `utils/` — utility scripts for querying and movie generation
+- `utils/` — utility scripts for metadata maintenance and movie generation
 
 ## License
 
