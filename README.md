@@ -84,14 +84,11 @@ Xingyao Chen – [xingyaochen0@github](https://github.com/xingyaochen0)
 Users can specify a custom time range and retrieve the available file paths for three key OVRO-LWA data products:
 
 - **`spec_fits`**:  
-  Daily spectrogram FITS files from beam-formed data, suitable for broadband dynamic spectral analysis.  
-  - **Time resolution**: ~1s  
-  - **Frequency resolution**: ~24 kHz
+  Daily spectrogram FITS files from beam-formed data, with a **time resolution** of ~??s and a **frequency resolution** of ~?? kHz
 
 - **`image_lev1_hdf`**:  
   Level-1 solar imaging HDF5 files, providing multi-frequency images integrated over 10 seconds.  
-  - These can be converted to FITS format using the utility:  
-    [`recover_fits_from_h5`](https://github.com/ovro-eovsa/ovro-lwa-solar/blob/a9521ca5d4695c7fabf03e88aced5cf636d72ebe/ovrolwasolar/utils.py#L781)
+  - These can be converted to FITS format using the utility of [`recover_fits_from_h5`](https://github.com/ovro-eovsa/ovro-lwa-solar/blob/a9521ca5d4695c7fabf03e88aced5cf636d72ebe/ovrolwasolar/utils.py#L781)
 
 - **`image_lev15_hdf`**:  
   Level-1.5 imaging files after applying ionospheric **refraction correction**.  
@@ -104,10 +101,12 @@ Each category allows users to download a corresponding `.txt` list of URLs for a
 ```bash
 # Download all spec_fits files
 wget -i ovro-lwa_solar_spec_fits.txt
-
+```
+```bash
 # Save to a specific directory
 wget -P /your/download/path -i ovro-lwa_solar_spec_fits.txt
-
+```
+```bash
 # Resume interrupted downloads
 wget -c -i ovro-lwa_solar_spec_fits.txt
 ```
