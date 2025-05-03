@@ -34,7 +34,7 @@ Create a `.env` file with the following:
 FLARE_DB_HOST=your_mysql_host
 FLARE_DB_USER=your_db_user
 FLARE_DB_PASSWORD=your_db_password
-FLARE_DB_DATABASE=lwa_metadata_query1
+FLARE_DB_DATABASE=lwa_metadata_query
 ```
 
 Or export them manually in your terminal before running.
