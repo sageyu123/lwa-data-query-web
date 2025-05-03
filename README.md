@@ -9,6 +9,9 @@ This repository contains a Flask-based web application for querying and visualiz
 - Preview quicklook spectrograms and daily imaging movies.
 - Auto movie generation for selected dates using `ffmpeg`.
 
+<img width="559" alt="image" src="https://github.com/user-attachments/assets/b180dbd6-07a8-4b37-9182-e706fa099c43" />
+
+
 ## Getting Started
 
 ### 1. Clone the Repository
