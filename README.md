@@ -116,8 +116,6 @@ wget -P /your/download/path -i ovro-lwa_solar_spec_fits.txt
 wget -c -i ovro-lwa_solar_spec_fits.txt
 ```
 
----
-
 ### 2. Interactive Data Availability Overview
 
 The middle section of the page visualizes the **temporal coverage** of each file type within the selected time range.
@@ -125,8 +123,6 @@ The middle section of the page visualizes the **temporal coverage** of each file
 - Zoom-in capabilities allow precise inspection of data availability.
 - The legend displays the total number of files per category.
 - To handle high file counts and enhance responsiveness, the plotting is compressed using a custom `compress_time_segments()` function (see: [example.py](https://github.com/xingyaochen0/lwa-data-query-web/blob/main/blueprints/example.py)).
-
----
 
 ### 3. Daily Quicklook: Spectrogram and Movie
 
