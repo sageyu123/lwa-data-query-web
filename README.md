@@ -75,7 +75,9 @@ This tool leverages the **OVRO-LWA Solar Data Processing Pipeline**, developed i
 Xingyao Chen – [xingyaochen0@github](https://github.com/xingyaochen0)
 
 
-## ✨ Key Features
+---
+
+## ✨ Detailed Documentation
 
 ### 1. Query Interface for Solar Data Files
 
@@ -97,7 +99,7 @@ Users can specify a custom time range and retrieve the available file paths for 
 
 Each category allows users to download a corresponding `.txt` list of URLs for automated downloading.
 
-#### 📥 Example WGET Commands
+#### Example WGET Commands
 
 ```bash
 # Download all spec_fits files
@@ -129,32 +131,12 @@ At the bottom of the page, a "Quicklook" section displays:
 - **Spectrogram**: A visual overview of daily beam-formed intensity data.
 - **Imaging Movie**: A snapshot-based animation from imaging PNG files.
 
-If a daily movie (named as `slow_hdf_movie_YYYYMMDD_sub.mp4`) is not found, the server will automatically generate one in the background for the time interval **12:00–17:00 UT** of the selected start date, and store it in:
-
-```bash
-/static/movies/
-```
+If a daily movie (named as `slow_hdf_movie_YYYYMMDD_sub.mp4`) is not found, the server will automatically generate one in the background for the time interval **12:00–17:00 UT** of the selected start date, and store it in `/static/movies/`.
 
 Users can interactively **slide the movie playback bar** and **download the resulting movie**.
 
 
 
----
-
-## CLI Utility
-
-You can also use the script directly via command line:
-
-### Example:
-
-```bash
-# Generate movie for given date range
-python lwa-query-web_utils.py --gen movie --start 2025-04-25 --end 2025-05-01
-```
-```bash
-# Default behavior (no --gen): general query or download processing
-python lwa-query-web_utils.py --start 2025-04-25 --end 2025-05-01
-```
 
 ---
 
@@ -181,14 +163,20 @@ python lwadata2sql.py --start 2025-04-30T00:00:00 --end 2025-05-01T00:00:00 --de
 
 ## Daily Movie Cronjob
 
-A cron job can also be configured to automatically generate daily movies stored in `/static/movies/`, using imaging PNGs from [https://ovsa.njit.edu/lwa-data/qlook_images/slow/synop/](https://ovsa.njit.edu/lwa-data/qlook_images/slow/synop/)
+A cron job can also be configured to automatically generate daily movies stored in `/static/movies/`, using imaging PNGs from [https://ovsa.njit.edu/lwa-data/qlook_images/slow/synop/](https://ovsa.njit.edu/lwa-data/qlook_images/slow/synop/).
 
-The output movies are named:
+You can also use the script directly via command line:
+
+```bash
+# Generate movie for given date range
+python lwa-query-web_utils.py --gen movie --start 2025-04-25 --end 2025-05-01
 ```
-slow_hdf_movie_YYYYMMDD.mp4
+```bash
+# Default behavior (no --gen): general query or download processing
+python lwa-query-web_utils.py --start 2025-04-25 --end 2025-05-01
 ```
 
-Each movie may last ~5 minutes and take approximately **20 MB** of disk space.
+The output movies are named `slow_hdf_movie_YYYYMMDD.mp4`. Each movie may last ~5 minutes and take approximately **20 MB** of disk space.
 
 
 
