@@ -1,4 +1,5 @@
 ##python lwa-query-web_utils.py --start 2025-04-25 --end 2025-05-01
+##python lwa-query-web_utils.py --gen movie --start 2025-04-25 --end 2025-05-01
 ##python lwa-query-web_utils.py --start 2025-04-25 --end 2025-05-01 --out /tmp/movies
 ##du -h /static/movies/*.mp4
 import mysql.connector
@@ -156,26 +157,27 @@ def generate_movies_from_date_range(start_date_str, end_date_str, save_path='./s
 # print(paths)
 
 
-
-
-
 ##=========================
 def main():
-    parser = argparse.ArgumentParser(description="Generate LWA daily movies from synoptic PNGs")
+    parser = argparse.ArgumentParser(description="LWA Query and Movie Generator Utility")
+    parser.add_argument('--gen', choices=['movie'], help="Optional generation mode: e.g., 'movie'")
     parser.add_argument('--start', required=True, help="Start date in YYYY-MM-DD")
     parser.add_argument('--end', required=True, help="End date in YYYY-MM-DD")
     parser.add_argument('--out', default='./static/movies/', help="Output directory (default: ./static/movies/)")
 
     args = parser.parse_args()
 
-    results = generate_movies_from_date_range(args.start, args.end, save_path=args.out)
-    print("\nGenerated movie paths:")
-    for date_str, path in results.items():
-        print(f"{date_str}: {path if path else 'No movie generated'}")
+    if args.gen == 'movie':
+        print(f"Generating movies from {args.start} to {args.end}...")
+        results = generate_movies_from_date_range(args.start, args.end, save_path=args.out)
+        print("\nGenerated movie paths:")
+        for date_str, path in results.items():
+            print(f"{date_str}: {path if path else 'No movie generated'}")
+    else:
+        print(f"No generation mode specified. Proceeding with default action from {args.start} to {args.end}...")
 
 if __name__ == '__main__':
     main()
-
 
 
 
