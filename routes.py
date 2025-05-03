@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- encoding: utf-8 -*-
 
-##this is the routes.py
 from flask import Flask
 from core import eovsa_bundle
 import socket
@@ -10,7 +9,7 @@ import os
 hostname = socket.gethostname()
 
 if hostname == "ovsa":
-    app = Flask(__name__, static_folder='/var/www/html/flarelist/static?', static_url_path='/flarelist/static?')
+    app = Flask(__name__, static_folder='/var/www/html/lwaquery/static', static_url_path='/lwaquery/static')
 else:
     app = Flask(__name__)
 
@@ -27,6 +26,5 @@ app.register_blueprint(example)
 
 
 # from flask_assets import Environment
-
 # assets_env = Environment(app)
 # assets_env.cache = False
