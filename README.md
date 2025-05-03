@@ -9,7 +9,7 @@ This repository contains a Flask-based web application for querying and visualiz
 - Query LWA observation metadata stored in MySQL.
 - Display available `spec_fits`, `image_lev1` and `image_lev15` HDF files.
 - Preview quicklook spectrograms and daily imaging movies.
-- Auto movie generation for selected dates using `ffmpeg`.
+#- Auto movie generation for selected dates using `ffmpeg`.
 
 ## Getting Started
 
@@ -70,9 +70,8 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 This tool leverages the **OVRO-LWA Solar Data Processing Pipeline**, developed in collaboration with [OVSA-NJIT](https://www.ovsa.njit.edu/) and [OVRO](https://www.ovro.caltech.edu/). Special thanks to the developers of [`ovro-lwa-solar`](https://github.com/ovro-eovsa/ovro-lwa-solar).
 
-## Maintainer
-
-Xingyao Chen – [xingyaochen0@github](https://github.com/xingyaochen0)
+#Maintainer
+#Xingyao Chen – [xingyaochen0@github](https://github.com/xingyaochen0)
 
 
 ---
@@ -170,7 +169,7 @@ You can also use the script directly via command line:
 python lwa-query-web_utils.py --gen movie --start 2025-04-25 --end 2025-05-01
 ```
 
-The output movies are named `slow_hdf_movie_YYYYMMDD.mp4`. Each movie may last ~5 minutes and take approximately **20 MB** of disk space.
+The output movies are named `slow_hdf_movie_YYYYMMDD.mp4`. Each full-day movie may last **~5 minutes** and take approximately **20 MB** of disk space.
 
 
 
