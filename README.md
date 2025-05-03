@@ -68,7 +68,7 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 
-This tool leverages the **OVRO-LWA Solar Data Processing Pipeline**, developed in collaboration with [NJIT](https://www.njit.edu/) and [OVRO](https://www.astro.caltech.edu/ovro-lwa/). Special thanks to the developers of [`ovro-lwa-solar`](https://github.com/ovro-eovsa/ovro-lwa-solar).
+This tool leverages the **OVRO-LWA Solar Data Processing Pipeline**, developed in collaboration with [OVSA-NJIT](https://www.ovsa.njit.edu/) and [OVRO](https://www.ovro.caltech.edu/). Special thanks to the developers of [`ovro-lwa-solar`](https://github.com/ovro-eovsa/ovro-lwa-solar).
 
 ## Maintainer
 
@@ -141,7 +141,7 @@ Users can interactively **slide the movie playback bar** and **download the resu
 
 ---
 
-## ⚙️ CLI Utility
+## CLI Utility
 
 You can also use the script directly via command line:
 
@@ -150,19 +150,20 @@ You can also use the script directly via command line:
 ```bash
 # Generate movie for given date range
 python lwa-query-web_utils.py --gen movie --start 2025-04-25 --end 2025-05-01
-
+```
+```bash
 # Default behavior (no --gen): general query or download processing
 python lwa-query-web_utils.py --start 2025-04-25 --end 2025-05-01
 ```
 
 ---
 
-## 🗄 Metadata Maintenance
+## Metadata Maintenance
 
-The metadata is maintained in a MySQL database:
+The metadata is maintained in a MySQL DATABASE:
 
 ```
-DATABASE lwa_metadata_query;
+USE lwa_metadata_query;
 ```
 
 To populate or update the metadata:
@@ -170,20 +171,17 @@ To populate or update the metadata:
 ```bash
 # Add entries for a given range (e.g., in a daily cron job)
 python lwadata2sql.py --start 2025-04-01T00:00:00 --end 2025-05-01T00:00:00
-
+```
+```bash
 # Manually delete records for a time range
 python lwadata2sql.py --start 2025-04-30T00:00:00 --end 2025-05-01T00:00:00 --delete
 ```
 
 ---
 
-## 🎞 Daily Movie Cronjob
+## Daily Movie Cronjob
 
-A cron job can also be configured to automatically generate daily movies stored in `/static/movies/`, using imaging PNGs from:
-
-```
-https://ovsa.njit.edu/lwa-data/qlook_images/slow/synop/
-```
+A cron job can also be configured to automatically generate daily movies stored in `/static/movies/`, using imaging PNGs from [https://ovsa.njit.edu/lwa-data/qlook_images/slow/synop/](https://ovsa.njit.edu/lwa-data/qlook_images/slow/synop/)
 
 The output movies are named:
 ```
