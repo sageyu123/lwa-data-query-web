@@ -19,7 +19,7 @@ This repository contains a Flask-based web application for querying and visualiz
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/xingyaochen0/lwa-data-query-web.git
+git clone https://github.com/ovro-eovsa/lwa-data-query-web.git
 cd lwa-data-query-web
 ```
 
