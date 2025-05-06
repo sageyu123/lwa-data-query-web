@@ -2,20 +2,22 @@
 {% block title %}OVRO-LWA Solar{% endblock %}
 
 {% block head %}
+<!-- Include jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Include Flatpickr Library -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<!-- Include Plotly -->
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<!-- <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script> -->
 {% assets "example_css" %}
 <link rel="stylesheet" href="{{ ASSET_URL }}" />
 {% endassets %}
 {% assets "example_js" %}
 <script type="text/javascript" src="{{ ASSET_URL }}"></script>
 {% endassets %}
-
-<!-- Include jQuery -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<!-- Include Plotly -->
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-<script src="{{ url_for('static', filename='js/example.js') }}"></script>
+<!-- <script src="{{ url_for('static', filename='js/example.js') }}"></script> -->
 <script type="text/javascript">
-var isOvsa = {{ 'true' if hostname == 'ovsa' else 'false' }};
+  var isOvsa = {{ 'true' if hostname == 'ovsa' else 'false' }};
 </script>
 
 {% endblock %}

@@ -78,9 +78,9 @@ def convert_local_to_urls(files_path):
     urls = []
     for file_path in files_path:
         if file_path.startswith("/nas7/ovro-lwa-data/hdf/"):
-            url = file_path.replace("/nas7/ovro-lwa-data/hdf/", "https://ovsa.njit.edu/lwadata2/hdf/")
+            url = file_path.replace("/nas7/ovro-lwa-data/hdf/", "https://ovsa.njit.edu/lwadata3/hdf/")
         elif file_path.startswith("/nas6/ovro-lwa-data/hdf/"):
-            url = file_path.replace("/nas6/ovro-lwa-data/hdf/", "https://ovsa.njit.edu/lwadata1/hdf/")
+            url = file_path.replace("/nas6/ovro-lwa-data/hdf/", "https://ovsa.njit.edu/lwadata2/hdf/")
         elif file_path.startswith("/common/lwa/spec_v2/fits/"):
             filename = os.path.basename(file_path)
             url = f"https://ovsa.njit.edu/lwa/extm/fits/{filename}"
