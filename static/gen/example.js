@@ -1,6 +1,158 @@
-document.addEventListener('DOMContentLoaded',function(){const endDate=new Date();const startDate=new Date();startDate.setDate(startDate.getDate()-14);flatpickr(document.getElementById('start'),{enableTime:true,dateFormat:"Y-m-d\\TH:i:S",defaultHour:0,altFormat:"Y-m-d\\TH:i:S",allowInput:true,time_24hr:true,defaultDate:startDate,});flatpickr(document.getElementById('end'),{enableTime:true,dateFormat:"Y-m-d\\TH:i:S",defaultHour:0,altFormat:"Y-m-d\\TH:i:S",allowInput:true,time_24hr:true,defaultDate:endDate,});var baseUrl=isOvsa?'/flarelist':'';function renderTable(data){let tableBody='';data.forEach((item)=>{let row='<tr>';['_id'].forEach((key)=>{row+='<td>'+(item[key]||'')+'</td>';});row+='<td><a href="#" class="flare-id-link" data-flare-id="'+item['flare_id']+'">'+item['flare_id']+'</a></td>';['start','peak','end','GOES_class','link_dspec','link_dspec_data','link_movie','link_fits'].forEach((key)=>{row+='<td>'+(item[key]||'')+'</td>';});row+='</tr>';tableBody+=row;});$('#flare-list').show();$('#flare-list > tbody').html(tableBody);attachFlareIdClickEvent()
-}
-function attachFlareIdClickEvent(){$('.flare-id-link').on('click',function(e){e.preventDefault();var flareId=$(this).data('flare-id');fetchAndDisplayFlareData(flareId);});}
-function fetchAndDisplayFlareData(flareId){$.ajax({url:baseUrl+`/fetch-spectral-data/${flareId}`,method:'GET',success:function(response){var plotData=JSON.parse(response.plot_data_ID);var config={modeBarButtonsToAdd:[{name:'Toggle Log-Y Scale',icon:Plotly.Icons.pencil,click:function(gd){var currentType=gd.layout.yaxis.type;var newType=currentType==='log'?'linear':'log';Plotly.relayout(gd,'yaxis.type',newType);}}],displaylogo:false,responsive:true};Plotly.newPlot('plot-container',plotData.data,plotData.layout,config);document.getElementById('plot-container').scrollIntoView({behavior:'smooth',block:'start'});},error:function(xhr,status,error){console.error("Failed to fetch data for Flare ID:",flareId,status,error);}});}
-function fetchData(start,end){$.ajax({url:baseUrl+'/api/flare/query',type:"POST",data:{'start':start,'end':end},dataType:"json",success:function(response){if(response.error){console.error(response.error);}else{renderTable(response.result);attachFlareIdClickEvent()}},error:function(xhr,status,error){console.error("Error occurred: "+error);showError("An error occurred while processing your request.");}});}
-$('#query-btn').on('click',function(e){e.preventDefault();let start=$('#start').val();let end=$('#end').val();fetchData(start,end);});(function autoFetchData(){const startPicker=document.querySelector("#start")._flatpickr;const endPicker=document.querySelector("#end")._flatpickr;const start=startPicker.selectedDates[0]?startPicker.selectedDates[0].toISOString().split('T')[0]:null;const end=endPicker.selectedDates[0]?endPicker.selectedDates[0].toISOString().split('T')[0]:null;if(start&&end){fetchData(start,end);}else{console.error("Start or end date is missing.");}})();});
+// static/js/example.js
+
+document.addEventListener('DOMContentLoaded', function () {
+    const startInput = document.getElementById('start');
+    const endInput = document.getElementById('end');
+    let movieOffsetDays = 0;
+
+    const now = new Date();
+    const past = new Date();
+    past.setDate(now.getDate() - 7);
+
+    const formatDate = (date) => date.toISOString().slice(0, 19);
+
+    startInput.value = formatDate(past);
+    endInput.value = formatDate(now);
+
+    flatpickr(".datetime-picker", {
+        enableTime: true,
+        dateFormat: "Y-m-d\\TH:i:S",
+        allowInput: true,
+        time_24hr: true,
+    });
+
+    function updateFileList(elementId, files) {
+        const listElement = document.getElementById(elementId);
+        listElement.innerHTML = '';
+        files.forEach(file => {
+            const li = document.createElement('li');
+            li.textContent = file;
+            listElement.appendChild(li);
+        });
+    }
+
+    function downloadAsTxt(dataArray, filename) {
+        const textContent = dataArray.join('\n');
+        const blob = new Blob([textContent], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function updateSpecAndMovie(baseStart, offsetDays) {
+        // const startDate = new Date(baseStart);
+        // startDate.setDate(startDate.getDate() + offsetDays);
+        // const shifted = startDate.toISOString().slice(0, 10);
+        // const shiftedStart = `${shifted}T12:00:00`;
+        const dateStr = baseStart.slice(0, 10);
+        const baseDate = new Date(`${dateStr}T00:00:00`);
+        baseDate.setUTCDate(baseDate.getUTCDate() + offsetDays);
+        const newDateStr = baseDate.toISOString().slice(0, 10);
+        const shiftedStart = `${newDateStr}T12:00:00`;
+
+        const formData = new FormData();
+        formData.append("start", shiftedStart);
+
+        fetch('/api/flare/spec_movie', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            const movieContainer = document.getElementById("movie-container");
+            const moviePlayer = document.getElementById("movie-player");
+            const movieSource = document.getElementById("movie-player-source");
+            const movieMessage = document.getElementById("movie-message");
+            const specImage = document.getElementById("spec-preview");
+            const specMessage = document.getElementById("spec-message");
+
+            let hasMovie = false;
+            let hasSpec = false;
+
+            if (data.movie_path) {
+                movieSource.src = data.movie_path;
+                moviePlayer.load();
+                moviePlayer.style.display = "block";
+                movieMessage.style.display = "none";
+                hasMovie = true;
+            } else {
+                moviePlayer.style.display = "none";
+                movieMessage.style.display = "block";
+            }
+
+            if (data.spec_png_path) {
+                specImage.src = data.spec_png_path;
+                specImage.style.display = "block";
+                specMessage.style.display = "none";
+                hasSpec = true;
+            } else {
+                specImage.style.display = "none";
+                specMessage.style.display = "block";
+            }
+
+            movieContainer.style.display = (hasMovie || hasSpec) ? "block" : "none";
+        });
+    }
+
+    function queryAndUpdate() {
+        const start = startInput.value;
+        const end = endInput.value;
+
+        const formData = new FormData();
+        formData.append('start', start);
+        formData.append('end', end);
+
+        fetch('/api/flare/query', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            updateFileList('spec-list', data.spec_fits);
+            updateFileList('image-lev1-list', data.slow_lev1);
+            updateFileList('image-lev15-list', data.slow_lev15);
+
+            document.getElementById('download-spec').onclick = () => downloadAsTxt(data.spec_fits, 'ovro-lwa_solar_spec_fits.txt');
+            document.getElementById('download-image-lev1').onclick = () => downloadAsTxt(data.slow_lev1, 'ovro-lwa_solar_image_lev1_hdf.txt');
+            document.getElementById('download-image-lev15').onclick = () => downloadAsTxt(data.slow_lev15, 'ovro-lwa_solar_image_lev15_hdf.txt');
+
+            const baseStartDate = start;
+            movieOffsetDays = 0;
+            updateSpecAndMovie(baseStartDate, movieOffsetDays);
+
+            fetch('/plot', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(result => {
+                const plotJSON = JSON.parse(result.plot);
+                Plotly.newPlot('plot-container', plotJSON.data, plotJSON.layout);
+            });
+        });
+    }
+
+    document.getElementById('query-btn').addEventListener('click', function (e) {
+        e.preventDefault();
+        queryAndUpdate();
+    });
+
+    document.getElementById('plus1day').addEventListener('click', () => {
+        movieOffsetDays += 1;
+        const baseStart = document.getElementById('start').value;
+        updateSpecAndMovie(baseStart, movieOffsetDays);
+    });
+
+    document.getElementById('minus1day').addEventListener('click', () => {
+        movieOffsetDays -= 1;
+        const baseStart = document.getElementById('start').value;
+        updateSpecAndMovie(baseStart, movieOffsetDays);
+    });
+
+    queryAndUpdate();
+});
