@@ -1,6 +1,8 @@
 // static/js/example.js
 
 document.addEventListener('DOMContentLoaded', function () {
+    const baseUrl = isOvsa ? '/lwadata-query' : '';
+
     const startInput = document.getElementById('start');
     const endInput = document.getElementById('end');
     let movieOffsetDays = 0;
@@ -58,7 +60,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const formData = new FormData();
         formData.append("start", shiftedStart);
 
-        fetch('/api/flare/spec_movie', {
+        fetch(`${baseUrl}/api/flare/spec_movie`, {
             method: 'POST',
             body: formData
         })
@@ -107,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function () {
         formData.append('start', start);
         formData.append('end', end);
 
-        fetch('/api/flare/query', {
+        fetch(`${baseUrl}/api/flare/query`, {
             method: 'POST',
             body: formData
         })
@@ -125,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function () {
             movieOffsetDays = 0;
             updateSpecAndMovie(baseStartDate, movieOffsetDays);
 
-            fetch('/plot', {
+            fetch(`${baseUrl}/plot`, {
                 method: 'POST',
                 body: formData
             })
