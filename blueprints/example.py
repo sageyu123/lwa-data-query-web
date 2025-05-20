@@ -390,15 +390,6 @@ def generate_html_movie():
         return f"Invalid JSON: {e}", 400
     print("??selected_files", selected_files[0])
 
-    # selected_files eg. 'ovro-lwa-352.lev1_mfs_10s.2025-05-10T00000Z.image_l.hdf'
-    # png file eg. 'ovro-lwa-352.synop_mfs_10s.2025-05-10T000208Z.image_I.png'
-    # try:
-    # ##===== exist movie.html
-    # first_file = selected_files[0]
-    # date_str = first_file.split("T")[0].split(".")[-1]  # e.g., 2025-05-10
-    # yyyy, mm, dd = date_str.split("-")
-    # movie_url = f"https://ovsa.njit.edu/lwa-data/qlook_images/slow/synop/{yyyy}/{mm}/{dd}/movie_{date_str}.html"
-
     ##===== generate a new movie.html
     png_files = convert_slow_hdf_to_existing_png(selected_files)
     # png_files = convert_png_to_urls(png_files)
