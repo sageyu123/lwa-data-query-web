@@ -771,6 +771,9 @@ def generate_data_bundle(bundle_type):
         file_paths = file_paths[:10]
         print(f"Limiting download to first 1000 files out of {len(file_paths)}")
 
+    if bundle_type == 'spec_fits':
+        file_paths = file_paths[0]  # Keep only the first file
+
     bundle_names = {
         'spec_fits': 'ovro-lwa-spec',
         'slow_lev1': 'ovro-lwa-image-lev1',
