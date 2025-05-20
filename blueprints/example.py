@@ -20,6 +20,10 @@ from glob import glob
 import shutil
 from imageio import imread
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 ##=========================
 example = Blueprint('example', __name__, template_folder='templates')
 
@@ -136,7 +140,7 @@ def generate_movie_from_pngs(png_files, output_name=None):
         subprocess.run(cmd, check=True)
         return "/" + output_path
     except Exception as e:
-        print("Movie generation failed:", e)
+        logger.error("Movie generation failed: %s", e, exc_info=True)
         return None
     finally:
         shutil.rmtree(temp_dir)
@@ -173,7 +177,7 @@ def convert_slow_hdf_to_existing_png(hdf_list):
             if os.path.exists(png_path):
                 png_list.append(png_path)
         except Exception as e:
-            print(f"Error processing {hdf_path}: {e}")
+            logger.warning("Error processing %s: %s", hdf_path, e)
             continue
     return png_list
 # png_files = convert_slow_hdf_to_existing_png(slow_hdf_files)
@@ -202,7 +206,7 @@ def convert_png_to_urls(png_paths):
             url = f"https://ovsa.njit.edu/lwa-data/qlook_images/slow/synop/{yyyy}/{mm}/{dd}/{png_filename}"
             urls.append(url)
         except Exception as e:
-            print(f"Failed to convert {png_path} to URL: {e}")
+            logger.warning("Failed to convert %s to URL: %s", png_path, e)
             continue
     return urls
 
@@ -244,7 +248,7 @@ def get_lwafilelist_from_database():
     end = request.form['end']
     cadence = request.form.get('cadence', None)
     cadence_sec = int(cadence) if cadence else None
-    print("qqq,cadence_sec", cadence_sec)
+    logger.info("cadence_sec: %s", cadence_sec)
     if not start or not end:
         raise ValueError("Start and end times are required.")
 
@@ -256,9 +260,9 @@ def get_lwafilelist_from_database():
                 obs_times[key], file_lists[key], cadence_sec
             )
 
-    print(f"Query: Found {len(file_lists['spec_fits'])} spec_fits files")
-    print(f"Query: Found {len(file_lists['slow_lev1'])} slow_lev1_hdf files")
-    print(f"Query: Found {len(file_lists['slow_lev15'])} slow_lev15_hdf files")
+    logger.info("Query: Found %d spec_fits files", len(file_lists['spec_fits']))
+    logger.info("Query: Found %d slow_lev1_hdf files", len(file_lists['slow_lev1']))
+    logger.info("Query: Found %d slow_lev15_hdf files", len(file_lists['slow_lev15']))
 
     # # Convert local HDF paths to public HTTPS URLs
     # file_lists['spec_fits']   = convert_local_to_urls(file_lists['spec_fits'])
@@ -373,7 +377,7 @@ def lwa_png_html_movie(png_paths, output_dir=f"{lwadata_dir}/{movie_subdir}"):
     for i in range(skiplines[-1]+1,nlines):
         f.write(lines[i])
     f.close()
-    print('html saved to {}'.format(htmlname))
+    logger.info("HTML saved to %s", htmlname)
     
     movie_url = f"https://ovsa.njit.edu/lwa-data/{movie_subdir}/{html_filename}"
     return movie_url
@@ -391,17 +395,17 @@ def generate_html_movie():
         selected_files = json.loads(selected_files_json)
     except Exception as e:
         return f"Invalid JSON: {e}", 400
-    print("??selected_files", selected_files[0])
+    logger.info("selected_files: %s", selected_files[0])
 
     ##===== generate a new movie.html
     png_files = convert_slow_hdf_to_existing_png(selected_files)
     # png_files = convert_png_to_urls(png_files)
-    print(f"png_files: {png_files[:2]}")
+    logger.info("png_files: %s", png_files[:2])
     # movie_url = generate_html_movie_from_png(png_files)
     movie_url = lwa_png_html_movie(png_files)
 
-    print("??movie_url", movie_url)
-    print(f"Generate_html_movie: success! {movie_url}")
+    logger.info("movie_url: %s", movie_url)
+    logger.info("Generate_html_movie: success! %s", movie_url)
 
     return jsonify({"movie_url": movie_url})
     # except Exception as e:
@@ -420,7 +424,7 @@ def get_spec_and_movie_paths(slow_hdf_files):
         spec_png = f"https://ovsa.njit.edu/lwa/extm/daily/{date_str}.png"
     except Exception as e:
         spec_png = None
-        print("Spec image link generation failed:", e)
+        logger.warning("Spec image link generation failed: %s", e)
     return spec_png, movie_path
 
 ##=========================
@@ -429,7 +433,7 @@ def get_lwa_spec_movie_from_database():
     start = request.form['start']
     if not start:
         raise ValueError("Start time is required.")
-    print("start111", start)
+    logger.info("Start time: %s", start)
     # ## Method 1: Generate image movies for the given time range
     # start_time = Time(start).datetime
     # end_time = start_time + timedelta(hours=2)
@@ -453,8 +457,8 @@ def get_lwa_spec_movie_from_database():
         slow_hdf_files = file_lists['slow_lev15']#)[:20]
         spec_png_path, movie_path = get_spec_and_movie_paths(slow_hdf_files)
     ##
-    print("spec_png_path", spec_png_path)
-    print("movie_path", movie_path)
+    logger.info("spec_png_path: %s", spec_png_path)
+    logger.info("movie_path: %s", movie_path)
     return jsonify({
         "movie_path": movie_path,
         "spec_png_path": spec_png_path
@@ -685,7 +689,7 @@ def generate_data_bundle(bundle_type):
 
     if len(file_paths) > 10:
         file_paths = file_paths[:10]
-        print(f"Limiting download to first 1000 files out of {len(file_paths)}")
+        logger.info("Limiting download to first 1000 files out of %d", len(file_paths))
 
     if bundle_type == 'spec_fits':
         file_paths = file_paths[0]  # Keep only the first file
@@ -719,7 +723,7 @@ def generate_data_bundle(bundle_type):
                 format="gztar",
                 root_dir=temp_dir
             )
-    print(f"Generate bundle for {bundle_type} from {start} to {end}")
+    logger.info("Generate bundle for %s from %s to %s", bundle_type, start, end)
     return jsonify({"archive_name": os.path.basename(archive_path)})
 
 
@@ -729,7 +733,7 @@ def download_ready_bundle(archive_name):
     # bundle_dir = "/data1/xychen/flaskenv/lwa_dafta_query_request"
     bundle_dir = f"{lwadata_dir}/{data_subdir}"
     archive_path = os.path.join(bundle_dir, archive_name)
-    print(f"Download bundle: {archive_path}")
+    logger.info("Download bundle: %s", archive_path)
     if os.path.exists(archive_path):
         return send_file(archive_path, as_attachment=True, download_name=archive_name)
     else:
