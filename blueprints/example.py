@@ -727,7 +727,7 @@ def generate_data_bundle(bundle_type):
 @example.route('/download_ready_bundle/<archive_name>', methods=['GET'])
 def download_ready_bundle(archive_name):
     # bundle_dir = "/data1/xychen/flaskenv/lwa_dafta_query_request"
-    bundle_dir = f"{lwadata_dir}/{movie_subdir}"
+    bundle_dir = f"{lwadata_dir}/{data_subdir}"
     archive_path = os.path.join(bundle_dir, archive_name)
     if os.path.exists(archive_path):
         return send_file(archive_path, as_attachment=True, download_name=archive_name)
