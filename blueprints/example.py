@@ -23,6 +23,7 @@ from imageio import imread
 ##=========================
 example = Blueprint('example', __name__, template_folder='templates')
 
+movie_subdir = 'tmp/html'
 ##=========================
 def create_lwa_query_db_connection():
     return mysql.connector.connect(
@@ -273,83 +274,7 @@ def get_lwafilelist_from_database():
     })
 
 
-# #=========================
-def generate_html_movie_from_png(png_paths, output_dir="/common/webplots/lwa-data/tests/test-movie-can-rm-anytime"):
-    """
-    Generate a JavaScript-based HTML movie from public PNG URLs, using the same structure as lwa_html_movie.
-
-    Parameters:
-        png_paths (list): List of full PNG URLs
-        output_dir (str): Local path to save the HTML movie file
-
-    Returns:
-        str: Public URL of the generated HTML movie
-    """
-
-    if not png_paths:
-        raise ValueError("No PNG files provided.")
-
-    png_paths = sorted(png_paths)[:10]
-    first_png = png_paths[0]
-    print("???png_paths", png_paths[0], png_paths[-1])
-
-    # Extract date and timestamp for HTML file naming
-    fname = os.path.basename(first_png)
-    if "T" not in fname:
-        raise ValueError("Filename missing timestamp.")
-
-    date_str = fname.split("T")[0].split(".")[-1]  # e.g., 2025-05-10
-    timestamp_part = fname.split("T")[1].split("Z")[0]
-    yyyy, mm, dd = date_str.split("-")
-
-    html_filename = f"movie_{date_str}T{timestamp_part}Z.html"
-    html_path = os.path.join(output_dir, html_filename)
-
-    # Determine image dimensions
-    # Download one image temporarily to read size
-    from urllib.request import urlretrieve
-    temp_png, _ = urlretrieve(first_png)
-    # img = imageio.imread(temp_png)
-    img = imread(temp_png)
-
-    ysize, xsize = img.shape[:2]
-    if xsize > 1125:
-        xfsize = xsize * 3 // 4
-        yfsize = ysize * 3 // 4
-    else:
-        xfsize = xsize
-        yfsize = ysize
-    print("???ysize, xsize", ysize, xsize)
-
-    # Load template
-    template_path = "/data1/xychen/flaskenv/html_movie_example.html"
-    with open(template_path, "r") as f:
-        lines = f.readlines()
-
-    skiplines = []
-    for i, line in enumerate(lines):
-        if 'var imax' in line:
-            lines[i] = f'var imax = {len(png_paths)};\n'
-        elif 'var iwidth' in line:
-            lines[i] = f'var iwidth = {xsize}, iheight = {ysize};\n'
-        elif 'NAME=animation' in line:
-            lines[i] = f'<img NAME=animation ALT="FRAME" width={xfsize} height={yfsize}>\n'
-        if 'urls[' in line:
-            skiplines.append(i)
-
-    with open(html_path, "w") as f:
-        for i in range(skiplines[0]):
-            f.write(lines[i])
-        for i, path in enumerate(png_paths):
-            fname = os.path.basename(path)
-            f.write(f'urls[{i}]=url_path+"/{fname}";\n')
-        for i in range(skiplines[-1] + 1, len(lines)):
-            f.write(lines[i])
-
-    movie_url = f"https://ovsa.njit.edu/lwa-data/tests/test-movie-can-rm-anytime/{html_filename}"
-    return movie_url
-
-def lwa_png_html_movie(png_paths, output_dir="/common/webplots/lwa-data/tests/test-movie-can-rm-anytime"):
+def lwa_png_html_movie(png_paths, output_dir=f"/common/webplots/lwa-data/{movie_subdir}"):
     ''' This routine will be called after every update to the figs_mfs
         folder (in /common/webplots/lwa-data) to write the movie.html file that 
         allows them to be viewed as a movie.  Just call this with a Time() object 
@@ -380,23 +305,20 @@ def lwa_png_html_movie(png_paths, output_dir="/common/webplots/lwa-data/tests/te
     timestamp_part = fname.split("T")[1].split("Z")[0]
     yyyy, mm, dd = date_str.split("-")
     html_filename = f"movie_{date_str}T{timestamp_part}Z.html"
-    html_folder_sub = html_filename.split(".html")[0]
-    output_dir1 = os.path.join(output_dir, html_folder_sub)
-    os.makedirs(output_dir1, exist_ok=True)
 
-    html_path = os.path.join(output_dir1, html_filename)
+    html_path = os.path.join(output_dir, html_filename)
 
-    # Copy PNG files into the output directory
-    copied_files = []
-    for f in files:
-        try:
-            basename = os.path.basename(f)
-            target_path = os.path.join(output_dir1, basename)
-            shutil.copy(f, target_path)
-            copied_files.append(target_path)
-        except Exception as e:
-            print(f"Failed to copy {f}: {e}")
-    files = copied_files
+    # # Copy PNG files into the output directory
+    # copied_files = []
+    # for f in files:
+    #     try:
+    #         basename = os.path.basename(f)
+    #         target_path = os.path.join(output_dir, basename)
+    #         shutil.copy(f, target_path)
+    #         copied_files.append(target_path)
+    #     except Exception as e:
+    #         print(f"Failed to copy {f}: {e}")
+    # files = copied_files
 
     ## get html from example
     files.sort()
@@ -443,14 +365,14 @@ def lwa_png_html_movie(png_paths, output_dir="/common/webplots/lwa-data/tests/te
     for i in range(skiplines[1] - 1):
         f.write(lines[i])
     for i in range(nfiles):
-        fname = os.path.basename(files[i])
-        f.write('urls[{:d}]=url_path+"/'.format(i)+fname+'";\n')
+        rel_path = os.path.relpath(files[i], output_dir)
+        f.write(f'urls[{i:d}]=url_path+"/{rel_path}";\n')
     for i in range(skiplines[-1]+1,nlines):
         f.write(lines[i])
     f.close()
     print('html saved to {}'.format(htmlname))
     
-    movie_url = f"https://ovsa.njit.edu/lwa-data/tests/test-movie-can-rm-anytime/{html_folder_sub}/{html_filename}"
+    movie_url = f"https://ovsa.njit.edu/lwa-data/{movie_subdir}/{html_filename}"
     return movie_url
 
 
@@ -787,7 +709,7 @@ def generate_data_bundle(bundle_type):
     archive_filename = f"{archive_label}_{start_time_str}_{end_time_str}{cadence_suffix}.tar.gz"
     # # Create a permanent bundle output path
     # bundle_dir = "/data1/xychen/flaskenv/lwa_data_query_request"
-    bundle_dir = "/common/webplots/lwa-data/tests/test-movie-can-rm-anytime"
+    bundle_dir = f"/common/webplots/lwa-data/{movie_subdir}"
     os.makedirs(bundle_dir, exist_ok=True)
     # archivse_path = os.path.join(bundle_dir, f"{bundle_type}_{start_time_str}_{end_time_str}.tar.gz")
     archive_path = os.path.join(bundle_dir, archive_filename)
@@ -810,8 +732,8 @@ def generate_data_bundle(bundle_type):
 # ##=========================
 @example.route('/download_ready_bundle/<archive_name>', methods=['GET'])
 def download_ready_bundle(archive_name):
-    # bundle_dir = "/data1/xychen/flaskenv/lwa_data_query_request"
-    bundle_dir = "/common/webplots/lwa-data/tests/test-movie-can-rm-anytime"
+    # bundle_dir = "/data1/xychen/flaskenv/lwa_dafta_query_request"
+    bundle_dir = f"/common/webplots/lwa-data/{movie_subdir}"
     archive_path = os.path.join(bundle_dir, archive_name)
     if os.path.exists(archive_path):
         return send_file(archive_path, as_attachment=True, download_name=archive_name)
