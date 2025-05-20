@@ -23,7 +23,10 @@ from imageio import imread
 ##=========================
 example = Blueprint('example', __name__, template_folder='templates')
 
+lwadata_dir = '/common/webplots/lwa-data'
+data_subdir = 'tmp/data-request'
 movie_subdir = 'tmp/html'
+
 ##=========================
 def create_lwa_query_db_connection():
     return mysql.connector.connect(
@@ -166,7 +169,7 @@ def convert_slow_hdf_to_existing_png(hdf_list):
             prefix = "ovro-lwa-352.synop_mfs_10s"
             png_filename = f"{prefix}.{date_part}T{timestamp_part}Z.image_I.png"
             # png_filename = hdf_filename.replace('.lev1.5_', '.synop_').replace('.hdf', '.png')
-            png_path = f"/common/webplots/lwa-data/qlook_images/slow/synop/{yyyy}/{mm}/{dd}/{png_filename}"
+            png_path = f"{lwadata_dir}/qlook_images/slow/synop/{yyyy}/{mm}/{dd}/{png_filename}"
             if os.path.exists(png_path):
                 png_list.append(png_path)
         except Exception as e:
@@ -274,7 +277,7 @@ def get_lwafilelist_from_database():
     })
 
 
-def lwa_png_html_movie(png_paths, output_dir=f"/common/webplots/lwa-data/{movie_subdir}"):
+def lwa_png_html_movie(png_paths, output_dir=f"{lwadata_dir}/{movie_subdir}"):
     ''' This routine will be called after every update to the figs_mfs
         folder (in /common/webplots/lwa-data) to write the movie.html file that 
         allows them to be viewed as a movie.  Just call this with a Time() object 
@@ -700,7 +703,7 @@ def generate_data_bundle(bundle_type):
     archive_filename = f"{archive_label}_{start_time_str}_{end_time_str}{cadence_suffix}.tar.gz"
     # # Create a permanent bundle output path
     # bundle_dir = "/data1/xychen/flaskenv/lwa_data_query_request"
-    bundle_dir = f"/common/webplots/lwa-data/{movie_subdir}"
+    bundle_dir = f"{lwadata_dir}/{data_subdir}"
     os.makedirs(bundle_dir, exist_ok=True)
     # archivse_path = os.path.join(bundle_dir, f"{bundle_type}_{start_time_str}_{end_time_str}.tar.gz")
     archive_path = os.path.join(bundle_dir, archive_filename)
@@ -724,7 +727,7 @@ def generate_data_bundle(bundle_type):
 @example.route('/download_ready_bundle/<archive_name>', methods=['GET'])
 def download_ready_bundle(archive_name):
     # bundle_dir = "/data1/xychen/flaskenv/lwa_dafta_query_request"
-    bundle_dir = f"/common/webplots/lwa-data/{movie_subdir}"
+    bundle_dir = f"{lwadata_dir}/{movie_subdir}"
     archive_path = os.path.join(bundle_dir, archive_name)
     if os.path.exists(archive_path):
         return send_file(archive_path, as_attachment=True, download_name=archive_name)
