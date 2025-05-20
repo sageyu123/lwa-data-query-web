@@ -178,5 +178,13 @@ python lwa-query-web_utils.py --gen movie --start 2025-04-25 --end 2025-05-01
 The output movies are named `slow_hdf_movie_YYYYMMDD.mp4`. Each full-day movie may last **~5 minutes** and take approximately **20 MB** of disk space.
 
 
+## Automatic Cleanup
+
+A cron job is set up on _ovsa_ to run `cleanup_tmp.sh` every hour. It recursively removes:
+
+- `.tar.gz` files under `/common/webplots/lwa-data/tmp/data-request/`
+- `.html` files under `/common/webplots/lwa-data/tmp/html/`
+
+that are older than 24 hours, helping free up space in the temporary storage area.
 
 
