@@ -662,9 +662,14 @@ def is_user_download_allowed(IP, archive_size_MB, max_downloads=20, max_total_MB
     log = load_user_download_log()
     IP_log = log.get(IP, {}).get(today, {"count": 0, "size": 0})
     if IP_log["count"] >= max_downloads:
-        return False, f"Download count limit({max_downloads}) reached for today."
+        return False, f"Download count limit ({max_downloads}) reached for today. Try again tomorrow or contact the OVRO-LWA Solar Team."
     if IP_log["size"] + archive_size_MB > max_total_MB:
-        return False, f"Download size limit({max_total_MB} MB) exceeded for today."
+        # return False, f"Your requesting files are {archive_size_MB} MB, exceeded the size limit({max_total_MB} MB) for today. Try it next day or contact the OVRO-LWA solar team."
+        return False, (
+            f"Your requested files total approximately {int(archive_size_MB)} MB, "
+            f"which exceeds the daily limit of {int(max_total_MB)} MB. "
+            "Try again tomorrow or contact the OVRO-LWA Solar Team."
+        )
     return True, ""
 
 def log_user_download(IP, archive_size_MB):

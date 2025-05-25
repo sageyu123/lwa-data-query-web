@@ -127,14 +127,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 method: 'POST',
                 body: formData
             })
-            .then(res => res.json())
+            .then(async res => {
+                if (!res.ok) {
+                    const errText = await res.text();  // Get error message from server
+                    throw new Error(errText);
+                }
+                return res.json();
+            })
             .then(data => {
                 const archiveName = data.archive_name;
                 downloadBtn.dataset.archiveName = archiveName;
                 downloadBtn.disabled = false;
             })
-            .catch(() => {
-                alert(`Failed to generate ${bundleType} bundle.`);
+            .catch(err => {
+                alert(err.message || `Failed to generate ${bundleType} bundle.`);
             });
         };
 
