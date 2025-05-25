@@ -21,6 +21,7 @@ import shutil
 from imageio import imread
 
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,11 @@ example = Blueprint('example', __name__, template_folder='templates')
 lwadata_dir = '/common/webplots/lwa-data'
 data_subdir = 'tmp/data-request'
 movie_subdir = 'tmp/html'
+
+##=========================
+max_IP_downloads_per_day = 20
+max_MB_downloads_per_IP = 100.
+lwa_user_downloads_log_path = "/data1/xychen/flaskenv/lwa_user_downloads_log.json"
 
 ##=========================
 def create_lwa_query_db_connection():
@@ -632,6 +638,46 @@ def plot():
         'plot': pio.to_json(fig)
     })
 
+##=========================
+"""To enforce user download limits (eg, max 20 downloads per day, and max 10GB per bundle)
+Flask backend can track IPs.
+Before serving a file, it will check how many downloads from that IP today and how much total data has been sent.
+"""
+def load_user_download_log():
+    if os.path.exists(lwa_user_downloads_log_path):
+        with open(lwa_user_downloads_log_path, 'r') as f:
+            return json.load(f)
+    else:
+        # Create an empty log file
+        with open(lwa_user_downloads_log_path, 'w') as f:
+            json.dump({}, f, indent=2)
+        return {}
+
+def save_user_download_log(log):
+    with open(lwa_user_downloads_log_path, 'w') as f:
+        json.dump(log, f)
+
+def is_user_download_allowed(IP, archive_size_MB, max_downloads=20, max_total_MB=50):
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    log = load_user_download_log()
+    IP_log = log.get(IP, {}).get(today, {"count": 0, "size": 0})
+    if IP_log["count"] >= max_downloads:
+        return False, f"Download count limit({max_downloads}) reached for today."
+    if IP_log["size"] + archive_size_MB > max_total_MB:
+        return False, f"Download size limit({max_total_MB} MB) exceeded for today."
+    return True, ""
+
+def log_user_download(IP, archive_size_MB):
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    log = load_user_download_log()
+    if IP not in log:
+        log[IP] = {}
+    if today not in log[IP]:
+        log[IP][today] = {"count": 0, "size": 0}
+    log[IP][today]["count"] += 1
+    log[IP][today]["size"] += archive_size_MB
+    save_user_download_log(log)
+
 
 # ##=========================
 def extract_timestamp_from_filename(filename):
@@ -650,7 +696,7 @@ def extract_timestamp_from_filename(filename):
     else:
         return "UNKNOWN"
 
-
+# ##=========================
 @example.route('/generate_bundle/<bundle_type>', methods=['POST'])
 def generate_data_bundle(bundle_type):
     start = request.form.get('start')
@@ -687,13 +733,22 @@ def generate_data_bundle(bundle_type):
     if not file_paths:
         return f"No files found for {bundle_type}", 404
 
-    if len(file_paths) > 10:
-        file_paths = file_paths[:10]
-        logger.info("Limiting download to first 1000 files out of %d", len(file_paths))
+    ### Limiting download to first 10 files
+    # if len(file_paths) > 10:
+    #     file_paths = file_paths[:10]
+    #     logger.info("Limiting download to first 10 files out of %d", len(file_paths))
+    # if bundle_type == 'spec_fits':
+    #     file_paths = file_paths[:1]  # Keep only the first file
 
-    if bundle_type == 'spec_fits':
-        file_paths = file_paths[0]  # Keep only the first file
+    # To check if the data request for downloading is allowed
+    user_IP = request.remote_addr
+    estimated_size_MB = sum(os.path.getsize(f) for f in file_paths if os.path.exists(f)) / (1024 * 1024)
+    allowed, reason = is_user_download_allowed(user_IP, estimated_size_MB, max_downloads=max_IP_downloads_per_day, max_total_MB=max_MB_downloads_per_IP)
+    if not allowed:
+        return f"Download denied: {reason}", 403
+    log_user_download(user_IP, estimated_size_MB)
 
+    # Download is allowed
     bundle_names = {
         'spec_fits': 'ovro-lwa-spec',
         'slow_lev1': 'ovro-lwa-image-lev1',
