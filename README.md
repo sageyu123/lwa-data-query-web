@@ -135,7 +135,7 @@ At the bottom of the page, a "Quicklook" section displays:
 - **Spectrogram**: A visual overview of daily beam-formed intensity data.
 - **Imaging Movie**: A snapshot-based animation from imaging PNG files.
 
-If a daily movie (named as `slow_hdf_movie_YYYYMMDD.mp4`) is not found, the server will automatically generate one in the background for the time interval **12:00–17:00 UT** of the selected start date, named as `slow_hdf_movie_YYYYMMDD_sub.mp4`, and store it in `/static/movies/`.
+If a daily movie (named as `slow_hdf_movie_YYYYMMDD.mp4`) is not found, the website will display the message: “The movie on YYYY-MM-DD does not exist.”.
 Users can interactively use the **−1 Day** / **+1 Day** buttons to view the spectrogram and movie from adjacent days, **slide the movie playback bar**, and **download the resulting movie**.
 
 
