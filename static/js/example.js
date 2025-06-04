@@ -79,6 +79,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 movieMessage.style.display = "none";
             } else {
                 moviePlayer.style.display = "none";
+                movieMessage.textContent = data.movie_message || "The image movie does not exist for the selected day.";
                 movieMessage.style.display = "block";
             }
 
@@ -88,10 +89,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 specMessage.style.display = "none";
             } else {
                 specImage.style.display = "none";
+                specMessage.textContent = data.spec_message || "The spectrogram does not exist for the selected day.";
                 specMessage.style.display = "block";
             }
 
             movieContainer.style.display = "block";
+
         });
     }
 

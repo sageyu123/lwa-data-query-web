@@ -35,7 +35,7 @@ movie_subdir = 'tmp/html'
 ##=========================
 max_IP_downloads_per_day = 20
 max_MB_downloads_per_IP = 100.
-lwa_user_downloads_log_path = "/data1/xychen/flaskenv/lwa_user_downloads_log.json"
+lwa_user_downloads_log_path = "/home/xychen/lwadata-query-web-utils/lwa_user_downloads_log.json"
 
 ##=========================
 def create_lwa_query_db_connection():
@@ -115,41 +115,6 @@ def convert_local_to_filename(files_path):
         list: List of converted file names
     """
     return [os.path.basename(path) for path in files_path]
-
-##=========================
-# output_name = "slow_hdf_movie.mp4"
-def generate_movie_from_pngs(png_files, output_name=None):
-    if not png_files:
-        return None
-
-    if not output_name:
-        date_str = os.path.basename(png_files[0]).split("T")[0].split('.')[-1].replace("-", "")
-        output_name = f"slow_hdf_movie_{date_str}_sub.mp4"
-
-    temp_dir = tempfile.mkdtemp()
-    try:
-        # Symlink all PNGs into temp dir with simple names: 0001.png, 0002.png...
-        for i, f in enumerate(sorted(png_files)):
-            link_name = os.path.join(temp_dir, f"{i:04d}.png")
-            os.symlink(f, link_name)
-
-        output_path = os.path.join("static", "movies", output_name)
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
-        cmd = [
-            "ffmpeg", "-y",
-            "-framerate", "6",
-            "-i", os.path.join(temp_dir, "%04d.png"),
-            "-c:v", "libx264", "-pix_fmt", "yuv420p",
-            output_path
-        ]
-        subprocess.run(cmd, check=True)
-        return "/" + output_path
-    except Exception as e:
-        logger.error("Movie generation failed: %s", e, exc_info=True)
-        return None
-    finally:
-        shutil.rmtree(temp_dir)
 
 ##=========================
 def convert_slow_hdf_to_existing_png(hdf_list):
@@ -419,57 +384,46 @@ def generate_html_movie():
 
 
 ##=========================
-def get_spec_and_movie_paths(slow_hdf_files):
-    png_files = convert_slow_hdf_to_existing_png(slow_hdf_files)
-    movie_path = generate_movie_from_pngs(png_files) if png_files else None
-    # if movie_path:
-    #     cache_buster = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-    #     movie_path += f"?v={cache_buster}"
-    try:
-        date_str = os.path.basename(png_files[0]).split("T")[0].split('.')[-1].replace("-", "")
-        spec_png = f"https://ovsa.njit.edu/lwa/extm/daily/{date_str}.png"
-    except Exception as e:
-        spec_png = None
-        logger.warning("Spec image link generation failed: %s", e)
-    return spec_png, movie_path
-
-##=========================
 @example.route("/api/flare/spec_movie", methods=['POST'])
 def get_lwa_spec_movie_from_database():
     start = request.form['start']
     if not start:
         raise ValueError("Start time is required.")
     logger.info("Start time: %s", start)
-    # ## Method 1: Generate image movies for the given time range
-    # start_time = Time(start).datetime
-    # end_time = start_time + timedelta(hours=2)
-    # file_lists, _ = get_lwa_file_lists_from_mysql(start_time.isoformat(), end_time.isoformat())
-    # slow_hdf_files = file_lists['slow_lev15']#)[:20]
-    # spec_png_path, movie_path = get_spec_and_movie_paths(slow_hdf_files)
 
     start_time = Time(start).datetime
     date_str = start_time.strftime("%Y%m%d")
-    movie_filename = f"slow_hdf_movie_{date_str}.mp4"
-    movie_path_local = os.path.join("static", "movies", movie_filename)
+    date_str2 = start_time.strftime("%Y-%m-%d")
 
-    if os.path.exists(movie_path_local):
-        # Method 2: Return the existing movie if available
-        movie_path = f"/static/movies/{movie_filename}"
-        spec_png_path = f"https://ovsa.njit.edu/lwa/extm/daily/{date_str}.png"
-    else:
-        # Method 1: Generate movie dynamically from PNGs
-        end_time = start_time + timedelta(hours=6)
-        file_lists, _ = get_lwa_file_lists_from_mysql(start_time.isoformat(), end_time.isoformat())
-        slow_hdf_files = file_lists['slow_lev15']#)[:20]
-        spec_png_path, movie_path = get_spec_and_movie_paths(slow_hdf_files)
-    ##
+    ## Local server file paths (for existence check)
+    # local_spec_path = f"/common/lwa/extm/daily/{date_str}.png" ?? path not exist
+    local_movie_path = f"/common/webplots/lwa-data/qlook_daily/movies/slow_hdf_movie_{date_str}.mp4"
+
+    # Public URLs
+    spec_png_path = f"https://ovsa.njit.edu/lwa/extm/daily/{date_str}.png"
+    movie_path = f"https://ovsa.njit.edu/lwa-data/qlook_daily/movies/slow_hdf_movie_{date_str}.mp4"
+
+    # Check existence
+    # spec_exists = os.path.exists(local_spec_path)
+    movie_exists = os.path.exists(local_movie_path)
+
+    response = {}
+
+    response["spec_png_path"] = spec_png_path
     logger.info("spec_png_path: %s", spec_png_path)
-    logger.info("movie_path: %s", movie_path)
-    return jsonify({
-        "movie_path": movie_path,
-        "spec_png_path": spec_png_path
-    })
 
+    # if spec_exists:
+    #     response["spec_png_path"] = spec_png_path
+    # else:
+    #     response["spec_message"] = f"The spectrogram on {date_str2} does not exist."
+    if movie_exists:
+        response["movie_path"] = movie_path
+        logger.info("movie_path exists: %s", movie_path)
+    else:
+        response["movie_message"] = f"The movie on {date_str2} does not exist."
+        logger.info("movie_path does not exist: %s", movie_path)
+
+    return jsonify(response)
 
 
 # ##=========================

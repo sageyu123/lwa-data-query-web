@@ -1,7 +1,7 @@
 ##python lwa-query-web_utils.py --start 2025-04-25 --end 2025-05-01
 ##python lwa-query-web_utils.py --gen movie --start 2025-04-25 --end 2025-05-01
 ##python lwa-query-web_utils.py --start 2025-04-25 --end 2025-05-01 --out /tmp/movies
-##du -h /static/movies/*.mp4
+##du -h /common/webplots/lwa-data/qlook_daily/movies/*.mp4
 import mysql.connector
 import os
 from glob import glob
@@ -65,7 +65,7 @@ def get_lwa_file_lists_from_mysql(timerange):
 
 
 ##=========================
-def generate_movies_from_date_range(start_date_str, end_date_str, save_path='./static/movies/'):
+def generate_movies_from_date_range(start_date_str, end_date_str, save_path='/common/webplots/lwa-data/qlook_daily/movies/'):
     """
     Given a date range in 'YYYY-MM-DD' format, find PNGs under the
     corresponding LWA synoptic image directory and generate a movie per day,
@@ -111,7 +111,7 @@ def generate_movies_from_date_range(start_date_str, end_date_str, save_path='./s
 
             png_files = [f for f in all_png_files if (ts := extract_timestamp(f)) and start_time <= ts <= end_time]
             if not png_files:
-                print(f"[{date_str}] No PNGs in 12:00–03:00 window.")
+                print(f"[{date_str}] No PNGs in 12:00-03:00 window.")
                 results[date_str] = None
                 current_date += timedelta(days=1)
                 continue
@@ -126,6 +126,7 @@ def generate_movies_from_date_range(start_date_str, end_date_str, save_path='./s
 
                 output_name = f"slow_hdf_movie_{yyyy}{mm}{dd}.mp4"
                 output_path = os.path.join(save_path, output_name)
+                print("path: ", os.path.dirname(output_path))
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
                 cmd = [
@@ -136,7 +137,7 @@ def generate_movies_from_date_range(start_date_str, end_date_str, save_path='./s
                     output_path
                 ]
                 subprocess.run(cmd, check=True)
-                results[date_str] = f"/static/movies/{output_name}"
+                results[date_str] = f"{save_path}{output_name}"
 
             except Exception as e:
                 print(f"[{date_str}] Movie generation failed: {e}")
@@ -163,7 +164,7 @@ def main():
     parser.add_argument('--gen', choices=['movie'], help="Optional generation mode: e.g., 'movie'")
     parser.add_argument('--start', required=True, help="Start date in YYYY-MM-DD")
     parser.add_argument('--end', required=True, help="End date in YYYY-MM-DD")
-    parser.add_argument('--out', default='./static/movies/', help="Output directory (default: ./static/movies/)")
+    parser.add_argument('--out', default='/common/webplots/lwa-data/qlook_daily/movies/', help="Output directory (default: /common/webplots/lwa-data/qlook_daily/movies/)")
 
     args = parser.parse_args()
 
