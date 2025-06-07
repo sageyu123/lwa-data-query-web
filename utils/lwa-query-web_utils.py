@@ -23,45 +23,45 @@ def create_lwa_query_db_connection():
 # cursor = connection.cursor()
 
 ##=========================connect to database
-def get_lwa_file_lists_from_mysql(timerange):
-    start = datetime.strptime(timerange[0], "%Y-%m-%dT%H:%M:%S")
-    end   = datetime.strptime(timerange[1], "%Y-%m-%dT%H:%M:%S")
-
+def get_lwa_file_lists_from_mysql(start_utc, end_utc, image_type="mfs"):
+    start = Time(start_utc).datetime
+    end = Time(end_utc).datetime
+    # Choose table based on image_type
+    if image_type == "mfs":
+        tables = {
+            'spec_fits': 'lwa_spec_fits_files',
+            'slow_lev1': 'lwa_slow_mfs_lev1_hdf_files',
+            'slow_lev15': 'lwa_slow_mfs_lev15_hdf_files'
+        }
+    elif image_type == "fch":
+        tables = {
+            'spec_fits': 'lwa_spec_fits_files',
+            'slow_lev1': 'lwa_slow_fch_lev1_hdf_files',
+            'slow_lev15': 'lwa_slow_fch_lev15_hdf_files'
+        }
+    else:
+        raise ValueError(f"Unsupported image_type: {image_type}")
+    # Connection
     connection = create_lwa_query_db_connection()
     cursor = connection.cursor()
-
     query = """
-        SELECT file_path FROM {table}
+        SELECT file_path, obs_time FROM {table}
         WHERE obs_time BETWEEN %s AND %s
         ORDER BY obs_time
     """
-
-    tables = {
-        'spec_fits': 'lwa_spec_fits_files',
-        'slow_lev1': 'lwa_slow_lev1_hdf_files',
-        'slow_lev15': 'lwa_slow_lev15_hdf_files'
-    }
-
     file_lists = {}
-
+    obs_times = {}
     for file_type, table in tables.items():
         cursor.execute(query.format(table=table), (start, end))
         rows = cursor.fetchall()
         file_lists[file_type] = [row[0] for row in rows]
-
+        obs_times[file_type] = [row[1] for row in rows]
     cursor.close()
     connection.close()
+    return file_lists, obs_times
 
-    return (
-        file_lists['spec_fits'],
-        file_lists['slow_lev1'],
-        file_lists['slow_lev15']
-    )
-# spec, slow_lev1, slow_lev15 = get_lwa_file_lists_from_mysql(['2025-04-30T00:00:00', '2025-05-01T00:00:00'])
-# print(f"Spec FITS from MySQL: {len(spec)} found")
-# print(f"Slow_lev1 HDF from MySQL: {len(slow_lev1)} found")
-# print(f"Slow_lev15 HDF from MySQL: {len(slow_lev15)} found")
-
+# Example usage:
+# file_lists, obs_times = get_lwa_file_lists_from_mysql("2025-04-01T00:00:00", "2025-05-01T00:00:00", image_type="mfs_lev15")
 
 
 ##=========================
