@@ -125,44 +125,40 @@ def insert_file_list_to_mysql(file_list, file_type, batch_size=1000):
         raise ValueError(f"Unsupported file_type: {file_type}")
 
     table = table_map[file_type]
-    inserted, skipped = 0, 0
     batch = []
+    inserted_total = 0
     connection = create_lwa_query_db_connection()
     cursor = connection.cursor()
 
     for i, file_path in enumerate(file_list):
         obs_time = parse_obs_time(file_path, file_type)
         if not obs_time:
-            skipped += 1
             continue
 
-        cursor.execute(f"SELECT COUNT(*) FROM {table} WHERE file_path = %s", (file_path,))
-        if cursor.fetchone()[0] == 0:
-            batch.append((file_path, obs_time))
-            inserted += 1
-        else:
-            skipped += 1
+        batch.append((file_path, obs_time))
 
         if len(batch) >= batch_size:
             cursor.executemany(
-                f"INSERT INTO {table} (file_path, obs_time) VALUES (%s, %s)",
+                f"INSERT IGNORE INTO {table} (file_path, obs_time) VALUES (%s, %s)",
                 batch
             )
+            inserted_total += cursor.rowcount
             connection.commit()
             print(f"[{file_type}] Committed batch of {len(batch)} at item {i+1} / {len(file_list)}")
             batch.clear()
 
     if batch:
         cursor.executemany(
-            f"INSERT INTO {table} (file_path, obs_time) VALUES (%s, %s)",
+            f"INSERT IGNORE INTO {table} (file_path, obs_time) VALUES (%s, %s)",
             batch
         )
+        inserted_total += cursor.rowcount
         connection.commit()
         print(f"[{file_type}] Final batch committed with {len(batch)} entries")
 
     cursor.close()
     connection.close()
-    print(f"[{file_type}] Total Inserted: {inserted}, Skipped: {skipped}")
+    print(f"[{file_type}] Total Inserted: {inserted_total}, Skipped: {len(file_list) - inserted_total}")
 
 # # ##=========================
 # file_types = ["spec", "mfs_lev1", "mfs_lev15", "fch_lev1", "fch_lev15"]
@@ -301,8 +297,45 @@ History:
 
 
 
+
+
+
 # ##=========================
-'''In MySQL : New version
+'''In MySQL : New version - June-07
+
+CREATE DATABASE lwa_metadata_query;
+
+USE lwa_metadata_query;
+
+CREATE TABLE lwa_spec_fits_files (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    file_path VARCHAR(1024) NOT NULL,
+    obs_time DATETIME NOT NULL,
+    UNIQUE KEY uq_file_path (file_path),
+    INDEX idx_obs_time (obs_time)
+);
+
+CREATE TABLE lwa_slow_fch_lev15_hdf_files (
+    id INT NOT NULL AUTO_INCREMENT,
+    file_path VARCHAR(1024) NOT NULL,
+    obs_time DATETIME NOT NULL,
+    PRIMARY KEY (id, obs_time),
+    UNIQUE KEY uq_file_path (file_path, obs_time)
+)
+PARTITION BY RANGE (TO_DAYS(obs_time)) (
+    PARTITION p202401 VALUES LESS THAN (TO_DAYS('2024-02-01')),
+    PARTITION p202402 VALUES LESS THAN (TO_DAYS('2024-03-01')),
+    ...
+    PARTITION p203012 VALUES LESS THAN (TO_DAYS('2031-01-01')),
+    PARTITION pmax VALUES LESS THAN MAXVALUE
+);
+
+
+'''
+
+
+# ##=========================
+'''In MySQL : New version - May-01
 
 CREATE DATABASE lwa_metadata_query;
 
@@ -411,106 +444,11 @@ PARTITION BY RANGE (TO_DAYS(obs_time)) (
     PARTITION pmax VALUES LESS THAN MAXVALUE
 );
 
-
-
-
-CREATE TABLE lwa_slow_fch_lev15_hdf_files (
-    id INT NOT NULL AUTO_INCREMENT,
-    file_path TEXT NOT NULL,
-    obs_time DATETIME NOT NULL,
-    PRIMARY KEY (id, obs_time)
-)
-PARTITION BY RANGE (TO_DAYS(obs_time)) (
-    PARTITION p202401 VALUES LESS THAN (TO_DAYS('2024-02-01')),
-    PARTITION p202402 VALUES LESS THAN (TO_DAYS('2024-03-01')),
-    PARTITION p202403 VALUES LESS THAN (TO_DAYS('2024-04-01')),
-    PARTITION p202404 VALUES LESS THAN (TO_DAYS('2024-05-01')),
-    PARTITION p202405 VALUES LESS THAN (TO_DAYS('2024-06-01')),
-    PARTITION p202406 VALUES LESS THAN (TO_DAYS('2024-07-01')),
-    PARTITION p202407 VALUES LESS THAN (TO_DAYS('2024-08-01')),
-    PARTITION p202408 VALUES LESS THAN (TO_DAYS('2024-09-01')),
-    PARTITION p202409 VALUES LESS THAN (TO_DAYS('2024-10-01')),
-    PARTITION p202410 VALUES LESS THAN (TO_DAYS('2024-11-01')),
-    PARTITION p202411 VALUES LESS THAN (TO_DAYS('2024-12-01')),
-    PARTITION p202412 VALUES LESS THAN (TO_DAYS('2025-01-01')),
-    PARTITION p202501 VALUES LESS THAN (TO_DAYS('2025-02-01')),
-    PARTITION p202502 VALUES LESS THAN (TO_DAYS('2025-03-01')),
-    PARTITION p202503 VALUES LESS THAN (TO_DAYS('2025-04-01')),
-    PARTITION p202504 VALUES LESS THAN (TO_DAYS('2025-05-01')),
-    PARTITION p202505 VALUES LESS THAN (TO_DAYS('2025-06-01')),
-    PARTITION p202506 VALUES LESS THAN (TO_DAYS('2025-07-01')),
-    PARTITION p202507 VALUES LESS THAN (TO_DAYS('2025-08-01')),
-    PARTITION p202508 VALUES LESS THAN (TO_DAYS('2025-09-01')),
-    PARTITION p202509 VALUES LESS THAN (TO_DAYS('2025-10-01')),
-    PARTITION p202510 VALUES LESS THAN (TO_DAYS('2025-11-01')),
-    PARTITION p202511 VALUES LESS THAN (TO_DAYS('2025-12-01')),
-    PARTITION p202512 VALUES LESS THAN (TO_DAYS('2026-01-01')),
-    PARTITION p202601 VALUES LESS THAN (TO_DAYS('2026-02-01')),
-    PARTITION p202602 VALUES LESS THAN (TO_DAYS('2026-03-01')),
-    PARTITION p202603 VALUES LESS THAN (TO_DAYS('2026-04-01')),
-    PARTITION p202604 VALUES LESS THAN (TO_DAYS('2026-05-01')),
-    PARTITION p202605 VALUES LESS THAN (TO_DAYS('2026-06-01')),
-    PARTITION p202606 VALUES LESS THAN (TO_DAYS('2026-07-01')),
-    PARTITION p202607 VALUES LESS THAN (TO_DAYS('2026-08-01')),
-    PARTITION p202608 VALUES LESS THAN (TO_DAYS('2026-09-01')),
-    PARTITION p202609 VALUES LESS THAN (TO_DAYS('2026-10-01')),
-    PARTITION p202610 VALUES LESS THAN (TO_DAYS('2026-11-01')),
-    PARTITION p202611 VALUES LESS THAN (TO_DAYS('2026-12-01')),
-    PARTITION p202612 VALUES LESS THAN (TO_DAYS('2027-01-01')),
-    PARTITION p202701 VALUES LESS THAN (TO_DAYS('2027-02-01')),
-    PARTITION p202702 VALUES LESS THAN (TO_DAYS('2027-03-01')),
-    PARTITION p202703 VALUES LESS THAN (TO_DAYS('2027-04-01')),
-    PARTITION p202704 VALUES LESS THAN (TO_DAYS('2027-05-01')),
-    PARTITION p202705 VALUES LESS THAN (TO_DAYS('2027-06-01')),
-    PARTITION p202706 VALUES LESS THAN (TO_DAYS('2027-07-01')),
-    PARTITION p202707 VALUES LESS THAN (TO_DAYS('2027-08-01')),
-    PARTITION p202708 VALUES LESS THAN (TO_DAYS('2027-09-01')),
-    PARTITION p202709 VALUES LESS THAN (TO_DAYS('2027-10-01')),
-    PARTITION p202710 VALUES LESS THAN (TO_DAYS('2027-11-01')),
-    PARTITION p202711 VALUES LESS THAN (TO_DAYS('2027-12-01')),
-    PARTITION p202712 VALUES LESS THAN (TO_DAYS('2028-01-01')),
-    PARTITION p202801 VALUES LESS THAN (TO_DAYS('2028-02-01')),
-    PARTITION p202802 VALUES LESS THAN (TO_DAYS('2028-03-01')),
-    PARTITION p202803 VALUES LESS THAN (TO_DAYS('2028-04-01')),
-    PARTITION p202804 VALUES LESS THAN (TO_DAYS('2028-05-01')),
-    PARTITION p202805 VALUES LESS THAN (TO_DAYS('2028-06-01')),
-    PARTITION p202806 VALUES LESS THAN (TO_DAYS('2028-07-01')),
-    PARTITION p202807 VALUES LESS THAN (TO_DAYS('2028-08-01')),
-    PARTITION p202808 VALUES LESS THAN (TO_DAYS('2028-09-01')),
-    PARTITION p202809 VALUES LESS THAN (TO_DAYS('2028-10-01')),
-    PARTITION p202810 VALUES LESS THAN (TO_DAYS('2028-11-01')),
-    PARTITION p202811 VALUES LESS THAN (TO_DAYS('2028-12-01')),
-    PARTITION p202812 VALUES LESS THAN (TO_DAYS('2029-01-01')),
-    PARTITION p202901 VALUES LESS THAN (TO_DAYS('2029-02-01')),
-    PARTITION p202902 VALUES LESS THAN (TO_DAYS('2029-03-01')),
-    PARTITION p202903 VALUES LESS THAN (TO_DAYS('2029-04-01')),
-    PARTITION p202904 VALUES LESS THAN (TO_DAYS('2029-05-01')),
-    PARTITION p202905 VALUES LESS THAN (TO_DAYS('2029-06-01')),
-    PARTITION p202906 VALUES LESS THAN (TO_DAYS('2029-07-01')),
-    PARTITION p202907 VALUES LESS THAN (TO_DAYS('2029-08-01')),
-    PARTITION p202908 VALUES LESS THAN (TO_DAYS('2029-09-01')),
-    PARTITION p202909 VALUES LESS THAN (TO_DAYS('2029-10-01')),
-    PARTITION p202910 VALUES LESS THAN (TO_DAYS('2029-11-01')),
-    PARTITION p202911 VALUES LESS THAN (TO_DAYS('2029-12-01')),
-    PARTITION p202912 VALUES LESS THAN (TO_DAYS('2030-01-01')),
-    PARTITION p203001 VALUES LESS THAN (TO_DAYS('2030-02-01')),
-    PARTITION p203002 VALUES LESS THAN (TO_DAYS('2030-03-01')),
-    PARTITION p203003 VALUES LESS THAN (TO_DAYS('2030-04-01')),
-    PARTITION p203004 VALUES LESS THAN (TO_DAYS('2030-05-01')),
-    PARTITION p203005 VALUES LESS THAN (TO_DAYS('2030-06-01')),
-    PARTITION p203006 VALUES LESS THAN (TO_DAYS('2030-07-01')),
-    PARTITION p203007 VALUES LESS THAN (TO_DAYS('2030-08-01')),
-    PARTITION p203008 VALUES LESS THAN (TO_DAYS('2030-09-01')),
-    PARTITION p203009 VALUES LESS THAN (TO_DAYS('2030-10-01')),
-    PARTITION p203010 VALUES LESS THAN (TO_DAYS('2030-11-01')),
-    PARTITION p203011 VALUES LESS THAN (TO_DAYS('2030-12-01')),
-    PARTITION p203012 VALUES LESS THAN (TO_DAYS('2031-01-01')),
-    PARTITION pmax VALUES LESS THAN MAXVALUE
-);
-
-
-
 '''
+
+
+
+
 
 # ##=========================
 '''
@@ -588,12 +526,4 @@ ADD PARTITION (
 # # # Example usage
 # # if __name__ == "__main__":
 # print(generate_partition_sql(start_year=2031, end_year=2033))
-
-
-
-
-
-
-
-
 

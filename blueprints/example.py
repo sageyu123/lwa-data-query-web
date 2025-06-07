@@ -32,7 +32,7 @@ movie_subdir = 'tmp/html'
 
 ##=========================
 max_IP_downloads_per_day = 20
-max_MB_downloads_per_IP = 100.
+max_MB_downloads_per_IP = 500.
 lwa_user_downloads_log_path = "/home/xychen/lwadata-query-web-utils/lwa_user_downloads_log.json"
 
 ##=========================
@@ -220,7 +220,7 @@ def get_lwafilelist_from_database():
     end = request.form['end']
     cadence = request.form.get('cadence', None)
     image_type = request.form.get('image_type', 'mfs')
-    print(f"image_type: {image_type}")
+    logger.info("Get lwa filelist image_type: %s", image_type)
 
     cadence_sec = int(cadence) if cadence else None
     logger.info("cadence_sec: %s", cadence_sec)
@@ -228,7 +228,6 @@ def get_lwafilelist_from_database():
         raise ValueError("Start and end times are required.")
 
     file_lists, obs_times = get_lwa_file_lists_from_mysql(start, end, image_type=image_type)
-    print("file_lists['slow_lev1']", len(file_lists['slow_lev1']))
 
     if cadence_sec:
         for key in ['slow_lev1', 'slow_lev15']:
@@ -726,7 +725,7 @@ def generate_data_bundle(bundle_type):
     cadence_suffix = f"_cad{cadence_sec}s" if cadence_sec else ""
 
     archive_label = bundle_names.get(bundle_type, bundle_type)
-    archive_filename = f"{archive_label}_{start_time_str}_{end_time_str}{cadence_suffix}.tar.gz"
+    archive_filename = f"{archive_label}-{image_type}{cadence_suffix}_{start_time_str}Z-{end_time_str}Z.tar.gz"
     # # Create a permanent bundle output path
     # bundle_dir = "/data1/xychen/flaskenv/lwa_data_query_request"
     bundle_dir = f"{lwadata_dir}/{data_subdir}"
