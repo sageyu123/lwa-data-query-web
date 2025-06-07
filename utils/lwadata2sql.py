@@ -225,7 +225,7 @@ def main():
         file_types = ["spec", "mfs_lev1", "mfs_lev15", "fch_lev1", "fch_lev15"]
         for file_type in file_types:
             # Get files list
-            files = get_path_lwa_files(['2025-04-01T00:00:00', '2025-04-03T00:00:00'], file_type=file_type)
+            files = get_path_lwa_files(timerange, file_type=file_type)
             print(f"{file_type}: {len(files)} found")
             # Insert to MySQL
             insert_file_list_to_mysql(files, file_type)
