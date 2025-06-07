@@ -2,7 +2,8 @@
 
 This repository contains a Flask-based web application for querying and visualizing solar data products from the [**OVRO-LWA Solar Data Pipeline**](https://github.com/ovro-eovsa/ovro-lwa-solar) (Owens Valley Radio Observatory - Long Wavelength Array). The system supports efficient database lookups for spectrogram and HDF imaging data and enables quick preview of available observations.
 
-<img width="624" alt="image" src="https://github.com/user-attachments/assets/c92445e9-0f00-4858-a0c8-cca11c2689c2" />
+<img width="622" alt="image" src="https://github.com/user-attachments/assets/82743200-191d-450c-a8b7-0dd4586d64c4" />
+
 
 ## Features
 
