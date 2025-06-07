@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const startInput = document.getElementById('start');
     const endInput = document.getElementById('end');
     const cadenceInput = document.getElementById('cadence');
+    const imageTypeInput = document.getElementById('image_type');
     let movieOffsetDays = 0;
     let queryVersion = 0;
 
@@ -122,7 +123,9 @@ document.addEventListener('DOMContentLoaded', function () {
             formData.append('end', endInput.value);
             const cadence = cadenceInput.value;
             if (cadence) formData.append('cadence', cadence);
-
+            const imageType = document.getElementById('image_type').value;
+            formData.append('image_type', imageType);
+        
             formData.append('selected_files', JSON.stringify(selectedFiles));
 
             downloadBtn.disabled = true;
@@ -162,6 +165,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const start = startInput.value;
         const end = endInput.value;
         const cadence = cadenceInput.value;
+        const imageType = imageTypeInput.value;
 
         const formData = new FormData();
         formData.append('start', start);
@@ -169,6 +173,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (cadence) {
             formData.append('cadence', cadence);
         }
+        formData.append('image_type', imageType);
 
         fetch(`${baseUrl}/api/flare/query`, {
             method: 'POST',
@@ -195,6 +200,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (cadence) {
                 plotFormData.append('cadence', cadence);
             }
+            plotFormData.append('image_type', imageType);
 
             fetch(`${baseUrl}/plot`, {
                 method: 'POST',

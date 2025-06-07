@@ -7,6 +7,7 @@ import os
 from glob import glob
 from datetime import datetime, timedelta
 import argparse
+import re
 
 ##=========================connect to database
 def create_lwa_query_db_connection():
@@ -21,84 +22,107 @@ def create_lwa_query_db_connection():
 
 ##=========================
 def parse_obs_time(filepath, file_type):
+    """
+    Parameters:
+        file_type: one of ["spec", "mfs_lev1", "mfs_lev15", "fch_lev1", "fch_lev15"]
+    """
     filename = os.path.basename(filepath)
     try:
-        if file_type in ['slow_lev1', 'slow_lev15']:
-            date_str = filename.split('T')[0].split('.')[-1]
-            time_str = filename.split('T')[1][:6]
-            return datetime.strptime(date_str + time_str, "%Y-%m-%d%H%M%S")
-        elif file_type == 'spec_fits':
+        if file_type == 'spec':
             date_str = filename.split('.')[0]
             return datetime.strptime(date_str, "%Y%m%d")
+
+        elif file_type.startswith(('mfs_', 'fch_')):
+            # Use regex to extract ISO-like timestamp
+            match = re.search(r'\d{4}-\d{2}-\d{2}T\d{6}Z', filename)
+            if match:
+                return datetime.strptime(match.group(0), "%Y-%m-%dT%H%M%SZ")
     except Exception:
         return None
 
-def get_path_lwa_files(timerange):
+def filter_and_log(files, file_type, timerange):
+    '''Filter a list of files within a given timerange.
+    Return a list of (file_path, obs_time) tuples for valid files.
+    '''
+    print(f"file_type: {file_type}")
     start = datetime.strptime(timerange[0], "%Y-%m-%dT%H:%M:%S")
     end = datetime.strptime(timerange[1], "%Y-%m-%dT%H:%M:%S")
+    last_day = None
+    result = []
+    for f in sorted(files):
+        t = parse_obs_time(f, file_type)
+        if not t or not (start <= t <= end):
+            continue
+        current_day = t.strftime("%Y-%m-%d")
+        if current_day != last_day:
+            print(current_day)
+            last_day = current_day
+        result.append((f, t))
+    return result
 
+def get_path_lwa_files(timerange, file_type="spec"):
+    """
+    Parameters:
+        timerange: [start_str, end_str] in ISO format e.g. "2024-01-01T00:00:00"
+        file_type: one of ["spec", "mfs_lev1", "mfs_lev15", "fch_lev1", "fch_lev15"]
+    Returns:
+        List of file paths matching the type and time range
+    History:
+        2025-04-08, initial version supporting "spec", "slow_lev1", "slow_lev15"
+        2025-06-08, added support for "fch_lev1" and "fch_lev15"
+    """
+    start = datetime.strptime(timerange[0], "%Y-%m-%dT%H:%M:%S")
+    end = datetime.strptime(timerange[1], "%Y-%m-%dT%H:%M:%S")
     start_1daybf = start - timedelta(days=1)
     end_1dayaf = end + timedelta(days=1)
-    # Gather all files from plausible folders (±1 day)
-    date_cursor = start_1daybf
-    # fast_files, slow_files = [], []
-    slow_lev1_files, slow_lev15_files = [], []
-    while date_cursor <= end_1dayaf:
-        y, m, d = date_cursor.strftime("%Y"), date_cursor.strftime("%m"), date_cursor.strftime("%d")
-        for disk in ['nas6', 'nas7']:
-            # fast_files += glob(f"/{disk}/ovro-lwa-data/hdf/fast/lev1/{y}/{m}/{d}/*_mfs_*.hdf")
-            slow_lev1_files += glob(f"/{disk}/ovro-lwa-data/hdf/slow/lev1/{y}/{m}/{d}/*_mfs_*.hdf")
-            slow_lev15_files += glob(f"/{disk}/ovro-lwa-data/hdf/slow/lev15/{y}/{m}/{d}/*_mfs_*.hdf")
-        date_cursor += timedelta(days=1)
 
-    spec_candidates = []
-    for disk in ['common']:
-        spec_candidates += glob(f"/{disk}/lwa/spec_v2/fits/*.fits")
+    files_collected = []
+    if file_type == "spec":
+        for disk in ['common']:
+            files_collected += glob(f"/{disk}/lwa/spec_v2/fits/*.fits")
+    else:
+        # mfs/fch lev1/lev15 HDF files
+        image_type, level = file_type.split("_")  # e.g., mfs, lev1
+        level_dir = "lev1" if level == "lev1" else "lev15"
+        pattern = f"*_{image_type}_*.hdf"
+        date_cursor = start_1daybf
+        while date_cursor <= end_1dayaf:
+            y, m, d = date_cursor.strftime("%Y"), date_cursor.strftime("%m"), date_cursor.strftime("%d")
+            for disk in ['nas6', 'nas7']:
+                files_collected += glob(f"/{disk}/ovro-lwa-data/hdf/slow/{level_dir}/{y}/{m}/{d}/{pattern}")
+            date_cursor += timedelta(days=1)
+    # Filter and return sorted paths
+    files_filtered = filter_and_log(files_collected, file_type, timerange)
+    files_sorted = [f for f, _ in files_filtered]
+    return files_sorted
 
-    # Helper to print new dates during filtering
-    def filter_and_log(files, file_type):
-        print(f"file_type: {file_type}")
-        last_day = None
-        result = []
-        for f in sorted(files):
-            t = parse_obs_time(f, file_type)
-            if not t or not (start <= t <= end):
-                continue
-            current_day = t.strftime("%Y-%m-%d")
-            if current_day != last_day:
-                print(current_day)
-                last_day = current_day
-            result.append((f, t))
-        return result
+# file_types = ["spec", "mfs_lev1", "mfs_lev15", "fch_lev1", "fch_lev15"]
+# for file_type in file_types:
+#     files = get_path_lwa_files(['2025-04-01T00:00:00', '2025-05-01T00:00:00'], file_type=file_type)
+#     print(f"{file_type}: {len(files)} found")
 
-    spec_filtered = filter_and_log(spec_candidates, 'spec_fits')
-    slow_lev1_filtered = filter_and_log(slow_lev1_files, 'slow_lev1')
-    slow_lev15_filtered = filter_and_log(slow_lev15_files, 'slow_lev15')
-    # fast_filtered = filter_and_log(fast_files, 'fast_hdf')
-    # slow_filtered = filter_and_log(slow_files, 'slow_hdf')
-    spec_sorted = [f for f, _ in spec_filtered]
-    slow_lev1_sorted = [f for f, _ in slow_lev1_filtered]
-    slow_lev15_sorted = [f for f, _ in slow_lev15_filtered]
-    # fast_sorted = [f for f, _ in fast_filtered]
-    return spec_sorted, slow_lev1_sorted, slow_lev15_sorted
-
-# spec, slow, fast = get_path_lwa_files(['2024-12-28T00:00:00', '2024-12-30T00:00:00'])
-# print(f"Spec FITS: {len(spec)} found")
-# print(f"Slow HDF: {len(slow)} found")
-# print(f"Fast HDF: {len(fast)} found")
-
-
+##=========================
 def insert_file_list_to_mysql(file_list, file_type, batch_size=1000):
+    # # table_map = {
+    # #     'fast_hdf': 'lwa_fast_hdf_files',
+    # #     'slow_hdf': 'lwa_slow_hdf_files',
+    # #     'spec_fits': 'lwa_spec_fits_files'
+    # # }
     # table_map = {
-    #     'fast_hdf': 'lwa_fast_hdf_files',
-    #     'slow_hdf': 'lwa_slow_hdf_files',
+    #     'slow_lev1': 'lwa_slow_lev1_hdf_files',
+    #     'slow_lev15': 'lwa_slow_lev15_hdf_files',
     #     'spec_fits': 'lwa_spec_fits_files'
     # }
     table_map = {
-        'slow_lev1': 'lwa_slow_lev1_hdf_files',
-        'slow_lev15': 'lwa_slow_lev15_hdf_files',
-        'spec_fits': 'lwa_spec_fits_files'
+        'spec':        'lwa_spec_fits_files',
+        'mfs_lev1':    'lwa_slow_mfs_lev1_hdf_files',
+        'mfs_lev15':   'lwa_slow_mfs_lev15_hdf_files',
+        'fch_lev1':    'lwa_slow_fch_lev1_hdf_files',
+        'fch_lev15':   'lwa_slow_fch_lev15_hdf_files'
     }
+
+    if file_type not in table_map:
+        raise ValueError(f"Unsupported file_type: {file_type}")
 
     table = table_map[file_type]
     inserted, skipped = 0, 0
@@ -113,14 +137,12 @@ def insert_file_list_to_mysql(file_list, file_type, batch_size=1000):
             continue
 
         cursor.execute(f"SELECT COUNT(*) FROM {table} WHERE file_path = %s", (file_path,))
-
         if cursor.fetchone()[0] == 0:
             batch.append((file_path, obs_time))
             inserted += 1
         else:
             skipped += 1
 
-        # If batch is full, insert and commit
         if len(batch) >= batch_size:
             cursor.executemany(
                 f"INSERT INTO {table} (file_path, obs_time) VALUES (%s, %s)",
@@ -130,7 +152,6 @@ def insert_file_list_to_mysql(file_list, file_type, batch_size=1000):
             print(f"[{file_type}] Committed batch of {len(batch)} at item {i+1} / {len(file_list)}")
             batch.clear()
 
-    # Final batch
     if batch:
         cursor.executemany(
             f"INSERT INTO {table} (file_path, obs_time) VALUES (%s, %s)",
@@ -143,36 +164,32 @@ def insert_file_list_to_mysql(file_list, file_type, batch_size=1000):
     connection.close()
     print(f"[{file_type}] Total Inserted: {inserted}, Skipped: {skipped}")
 
-# ##=========================
-# # Get files list
-# spec, slow_lev1, slow_lev15 = get_path_lwa_files(['2025-04-01T00:00:00', '2025-05-01T00:00:00'])
-# print(f"Spec FITS: {len(spec)} found")
-# print(f"Slow_lev1 HDF: {len(slow_lev1)} found")
-# print(f"Slow_lev15 HDF: {len(slow_lev15)} found")
-
-# # # # Insert to MySQL
-# insert_file_list_to_mysql(spec, 'spec_fits')
-# insert_file_list_to_mysql(slow_lev1, 'slow_lev1')
-# insert_file_list_to_mysql(slow_lev15, 'slow_lev15')
+# # ##=========================
+# file_types = ["spec", "mfs_lev1", "mfs_lev15", "fch_lev1", "fch_lev15"]
+# for file_type in file_types:
+#     # Get files list
+#     files = get_path_lwa_files(['2025-04-01T00:00:00', '2025-04-03T00:00:00'], file_type=file_type)
+#     print(f"{file_type}: {len(files)} found")
+#     # Insert to MySQL
+#     insert_file_list_to_mysql(files, file_type)
 
 
 # ##=========================
 def delete_files_from_mysql(timerange):
     """
-    Deletes entries in MySQL tables for slow_lev1, slow_lev15, and spec_fits files
+    Deletes entries in MySQL tables for all mfs/fch lev1/lev15 and spec files
     that fall within the specified time range.
-
-    Parameters:
-        timerange (list): A list of two ISO-formatted strings ['start_time', 'end_time'],
-                          e.g., ['2024-12-28T00:00:00', '2025-01-05T00:00:00']
+    timerange is in ISO format (e.g., ['2024-12-28T00:00:00', '2025-01-05T00:00:00'])
     """
     start = datetime.strptime(timerange[0], "%Y-%m-%dT%H:%M:%S")
     end = datetime.strptime(timerange[1], "%Y-%m-%dT%H:%M:%S")
 
     table_map = {
-        'slow_lev1': 'lwa_slow_lev1_hdf_files',
-        'slow_lev15': 'lwa_slow_lev15_hdf_files',
-        'spec_fits': 'lwa_spec_fits_files'
+        'spec':        'lwa_spec_fits_files',
+        'mfs_lev1':    'lwa_slow_mfs_lev1_hdf_files',
+        'mfs_lev15':   'lwa_slow_mfs_lev15_hdf_files',
+        'fch_lev1':    'lwa_slow_fch_lev1_hdf_files',
+        'fch_lev15':   'lwa_slow_fch_lev15_hdf_files'
     }
 
     connection = create_lwa_query_db_connection()
@@ -192,7 +209,6 @@ def delete_files_from_mysql(timerange):
 # delete_files_from_mysql(['2024-12-20T00:00:00', '2025-01-15T00:00:00'])
 
 
-
 ##=========================
 def main():
     parser = argparse.ArgumentParser(description="Insert or delete LWA metadata in MySQL")
@@ -206,14 +222,15 @@ def main():
     if args.delete:
         delete_files_from_mysql(timerange)
     else:
-        spec, slow_lev1, slow_lev15 = get_path_lwa_files(timerange)
-        print(f"Spec FITS: {len(spec)} found")
-        print(f"Slow_lev1 HDF: {len(slow_lev1)} found")
-        print(f"Slow_lev15 HDF: {len(slow_lev15)} found")
+        file_types = ["spec", "mfs_lev1", "mfs_lev15", "fch_lev1", "fch_lev15"]
+        for file_type in file_types:
+            # Get files list
+            files = get_path_lwa_files(['2025-04-01T00:00:00', '2025-04-03T00:00:00'], file_type=file_type)
+            print(f"{file_type}: {len(files)} found")
+            # Insert to MySQL
+            insert_file_list_to_mysql(files, file_type)
+            print(f"Success for {file_type}!")
 
-        insert_file_list_to_mysql(spec, 'spec_fits')
-        insert_file_list_to_mysql(slow_lev1, 'slow_lev1')
-        insert_file_list_to_mysql(slow_lev15, 'slow_lev15')
 
 if __name__ == '__main__':
     main()
@@ -255,6 +272,11 @@ CREATE TABLE lwa_spec_fits_files (
 
 # ##=========================
 '''In MySQL : New version
+
+History:
+    2025-04-08, initial version
+    2025-05-02, add month index for quick search
+    2025-06-08, add table for "lwa_slow_fch_lev1_hdf_files" and "lwa_slow_fch_lev15_hdf_files"
 '''
 
 # ##=========================
@@ -295,7 +317,7 @@ CREATE TABLE lwa_spec_fits_files (
 CREATE INDEX idx_obs_time ON lwa_spec_fits_files (obs_time);
 
 
-CREATE TABLE lwa_slow_lev1_hdf_files (
+CREATE TABLE lwa_slow_fch_lev1_hdf_files (
     id INT NOT NULL AUTO_INCREMENT,
     file_path TEXT NOT NULL,
     obs_time DATETIME NOT NULL,
@@ -392,7 +414,7 @@ PARTITION BY RANGE (TO_DAYS(obs_time)) (
 
 
 
-CREATE TABLE lwa_slow_lev15_hdf_files (
+CREATE TABLE lwa_slow_fch_lev15_hdf_files (
     id INT NOT NULL AUTO_INCREMENT,
     file_path TEXT NOT NULL,
     obs_time DATETIME NOT NULL,
@@ -494,7 +516,7 @@ PARTITION BY RANGE (TO_DAYS(obs_time)) (
 '''
 -- To list COLUMNS
 
-SHOW COLUMNS FROM lwa_slow_lev1_hdf_files;
+SHOW COLUMNS FROM lwa_slow_mfs_lev1_hdf_files;
 
 -- To list all partitions
 SELECT
@@ -506,7 +528,7 @@ FROM
     information_schema.PARTITIONS
 WHERE
     TABLE_SCHEMA = 'lwa_metadata_query'
-    AND TABLE_NAME IN ('lwa_slow_lev1_hdf_files', 'lwa_slow_lev15_hdf_files')
+    AND TABLE_NAME IN ('lwa_slow_mfs_lev1_hdf_files', 'lwa_slow_mfs_lev15_hdf_files')
 ORDER BY
     TABLE_NAME, PARTITION_DESCRIPTION;
 
@@ -517,11 +539,11 @@ ORDER BY
 '''
 -- Add more partitions
 -- Drop existing MAXVALUE partition
-ALTER TABLE lwa_slow_lev1_hdf_files
+ALTER TABLE lwa_slow_mfs_lev1_hdf_files
 DROP PARTITION pmax;
 
 -- Add monthly partitions
-ALTER TABLE lwa_slow_lev1_hdf_files
+ALTER TABLE lwa_slow_mfs_lev1_hdf_files
 ADD PARTITION (
     PARTITION p203101 VALUES LESS THAN (TO_DAYS('2031-02-01')),
     PARTITION p203102 VALUES LESS THAN (TO_DAYS('2031-03-01')),
@@ -536,11 +558,11 @@ ADD PARTITION (
 
 #     if drop_pmax:
 #         sql_lines.append("-- Drop existing MAXVALUE partition")
-#         sql_lines.append("ALTER TABLE lwa_slow_lev1_hdf_files DROP PARTITION pmax;")
+#         sql_lines.append("ALTER TABLE lwa_slow_mfs_lev1_hdf_files DROP PARTITION pmax;")
 #         sql_lines.append("")
 
 #     sql_lines.append("-- Add monthly partitions")
-#     sql_lines.append("ALTER TABLE lwa_slow_lev1_hdf_files ADD PARTITION (")
+#     sql_lines.append("ALTER TABLE lwa_slow_mfs_lev1_hdf_files ADD PARTITION (")
 
 #     parts = []
 #     for year in range(start_year, end_year + 1):

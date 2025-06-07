@@ -19,9 +19,7 @@ from datetime import datetime, timedelta
 from glob import glob
 import shutil
 from imageio import imread
-
 import logging
-import json
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +45,25 @@ def create_lwa_query_db_connection():
     )
 
 ##=========================
-def get_lwa_file_lists_from_mysql(start_utc, end_utc):
+def get_lwa_file_lists_from_mysql(start_utc, end_utc, image_type="mfs"):
     start = Time(start_utc).datetime
     end = Time(end_utc).datetime
+    # Choose table based on image_type
+    if image_type == "mfs":
+        tables = {
+            'spec_fits': 'lwa_spec_fits_files',
+            'slow_lev1': 'lwa_slow_mfs_lev1_hdf_files',
+            'slow_lev15': 'lwa_slow_mfs_lev15_hdf_files'
+        }
+    elif image_type == "fch":
+        tables = {
+            'spec_fits': 'lwa_spec_fits_files',
+            'slow_lev1': 'lwa_slow_fch_lev1_hdf_files',
+            'slow_lev15': 'lwa_slow_fch_lev15_hdf_files'
+        }
+    else:
+        raise ValueError(f"Unsupported image_type: {image_type}")
+    # Connection
     connection = create_lwa_query_db_connection()
     cursor = connection.cursor()
     query = """
@@ -57,16 +71,6 @@ def get_lwa_file_lists_from_mysql(start_utc, end_utc):
         WHERE obs_time BETWEEN %s AND %s
         ORDER BY obs_time
     """
-    # tables = {
-    #     'fast_hdf': 'lwa_fast_hdf_files',
-    #     'slow_hdf': 'lwa_slow_hdf_files',
-    #     'spec_fits': 'lwa_spec_fits_files'
-    # }
-    tables = {
-        'spec_fits': 'lwa_spec_fits_files',
-        'slow_lev1': 'lwa_slow_lev1_hdf_files',
-        'slow_lev15': 'lwa_slow_lev15_hdf_files'
-    }
     file_lists = {}
     obs_times = {}
     for file_type, table in tables.items():
@@ -153,7 +157,6 @@ def convert_slow_hdf_to_existing_png(hdf_list):
     return png_list
 # png_files = convert_slow_hdf_to_existing_png(slow_hdf_files)
 
-
 ##=========================
 def convert_png_to_urls(png_paths):
     """
@@ -180,7 +183,6 @@ def convert_png_to_urls(png_paths):
             logger.warning("Failed to convert %s to URL: %s", png_path, e)
             continue
     return urls
-
 
 ##=========================
 def filter_files_by_cadence(times, files, cadence_sec):
@@ -210,7 +212,6 @@ def filter_files_by_cadence(times, files, cadence_sec):
 
     return filtered_times, filtered_files
 
-
 ##=========================
 @example.route("/api/flare/query", methods=['POST'])
 def get_lwafilelist_from_database():
@@ -218,12 +219,16 @@ def get_lwafilelist_from_database():
     start = request.form['start']
     end = request.form['end']
     cadence = request.form.get('cadence', None)
+    image_type = request.form.get('image_type', 'mfs')
+    print(f"image_type: {image_type}")
+
     cadence_sec = int(cadence) if cadence else None
     logger.info("cadence_sec: %s", cadence_sec)
     if not start or not end:
         raise ValueError("Start and end times are required.")
 
-    file_lists, obs_times = get_lwa_file_lists_from_mysql(start, end)
+    file_lists, obs_times = get_lwa_file_lists_from_mysql(start, end, image_type=image_type)
+    print("file_lists['slow_lev1']", len(file_lists['slow_lev1']))
 
     if cadence_sec:
         for key in ['slow_lev1', 'slow_lev15']:
@@ -251,7 +256,7 @@ def get_lwafilelist_from_database():
         "slow_lev15": file_lists['slow_lev15']
     })
 
-
+##=========================
 def lwa_png_html_movie(png_paths, output_dir=f"{lwadata_dir}/{movie_subdir}"):
     ''' This routine will be called after every update to the figs_mfs
         folder (in /common/webplots/lwa-data) to write the movie.html file that 
@@ -353,9 +358,7 @@ def lwa_png_html_movie(png_paths, output_dir=f"{lwadata_dir}/{movie_subdir}"):
     movie_url = f"https://ovsa.njit.edu/lwa-data/{movie_subdir}/{html_filename}"
     return movie_url
 
-
-
-#=========================works
+#=========================
 @example.route('/generate_html_movie', methods=['POST'])
 def generate_html_movie():
     selected_files_json = request.form.get('selected_files', '')
@@ -381,7 +384,6 @@ def generate_html_movie():
     return jsonify({"movie_url": movie_url})
     # except Exception as e:
     #     return f"Could not construct movie path: {e}", 500
-
 
 ##=========================
 @example.route("/api/flare/spec_movie", methods=['POST'])
@@ -424,7 +426,6 @@ def get_lwa_spec_movie_from_database():
         logger.info("movie_path does not exist: %s", movie_path)
 
     return jsonify(response)
-
 
 # ##=========================
 '''Several method to downsample times
@@ -516,11 +517,12 @@ color_map = {
 def plot():
     start = request.form['start']
     end = request.form['end']
-    # cadence = request.form.get('cadence')
-    # cadence_sec = int(cadence) if cadence and cadence.strip().isdigit() else None
     cadence = request.form.get('cadence', None)
     cadence_sec = int(cadence) if cadence else None
-    print("ppp, cadence_sec", cadence_sec)
+    logger.info("plotly cadence_sec: %s", cadence_sec)
+
+    image_type = request.form.get('image_type', 'mfs')
+    print(f"plotly image_type: {image_type}")
 
     try:
         start = datetime.strptime(start, "%Y-%m-%dT%H:%M:%S") - timedelta(days=0)
@@ -530,7 +532,8 @@ def plot():
     if start > end:
         return jsonify({'error': 'End date must be after start date'}), 400
 
-    file_lists, obs_times = get_lwa_file_lists_from_mysql(Time(start).isot, Time(end).isot)
+    file_lists, obs_times = get_lwa_file_lists_from_mysql(Time(start).isot, Time(end).isot, image_type=image_type)
+
     if cadence_sec:
         for key in ['slow_lev1', 'slow_lev15']:
             obs_times[key], file_lists[key] = filter_files_by_cadence(
@@ -539,7 +542,8 @@ def plot():
 
     fig = go.Figure()
     labels = ['spec_fits', 'slow_lev1', 'slow_lev15']
-    labels_fig = ['spec_fits', 'image_lev1', 'image_lev15']
+    # labels_fig = ['spec_fits', 'image_lev1', 'image_lev15']
+    labels_fig = ['Spec', f'Image lev1_{image_type}', f'Image lev15_{image_type}']
 
     for i, (label, label_fig) in enumerate(zip(labels, labels_fig)):
     # for ll, label in enumerate(labels):
@@ -579,7 +583,10 @@ def plot():
     print(f"Plot Data Availability...")
 
     fig.update_layout(
-        title='Data Availability',
+        title=dict(
+            text='Data Availability',#'<b>Data Availability</b>',
+            font=dict(size=20)#, family='Arial Black'
+        ),
         xaxis_title='',#'Time'
         yaxis_title='',
         xaxis=dict(tickfont=dict(size=16), title_font=dict(size=16)),
@@ -637,7 +644,6 @@ def log_user_download(IP, archive_size_MB):
     log[IP][today]["size"] += archive_size_MB
     save_user_download_log(log)
 
-
 # ##=========================
 def extract_timestamp_from_filename(filename):
     """
@@ -664,10 +670,12 @@ def generate_data_bundle(bundle_type):
     cadence = request.form.get('cadence', None)
     cadence_sec = int(cadence) if cadence else None
 
+    image_type = request.form.get('image_type', 'mfs')
+
     if not start or not end:
         return "Start and end parameters are required", 400
 
-    file_lists, obs_times = get_lwa_file_lists_from_mysql(start, end)
+    file_lists, obs_times = get_lwa_file_lists_from_mysql(start, end, image_type=image_type)
 
     if bundle_type not in file_lists:
         return f"Invalid bundle type: {bundle_type}", 400
@@ -740,7 +748,6 @@ def generate_data_bundle(bundle_type):
     logger.info("Generate bundle for %s from %s to %s", bundle_type, start, end)
     return jsonify({"archive_name": os.path.basename(archive_path)})
 
-
 # ##=========================
 @example.route('/download_ready_bundle/<archive_name>', methods=['GET'])
 def download_ready_bundle(archive_name):
@@ -752,7 +759,6 @@ def download_ready_bundle(archive_name):
         return send_file(archive_path, as_attachment=True, download_name=archive_name)
     else:
         return f"{archive_name} not found", 404
-
 
 # ##=========================
 @example.route("/")
