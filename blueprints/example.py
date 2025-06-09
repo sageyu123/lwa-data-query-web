@@ -32,7 +32,7 @@ movie_subdir = 'tmp/html'
 
 ##=========================
 max_IP_downloads_per_day = 20
-max_MB_downloads_per_IP = 500.
+max_MB_downloads_per_IP = 1000.
 lwa_user_downloads_log_path = "/home/xychen/lwadata-query-web-utils/lwa_user_downloads_log.json"
 
 ##=========================
@@ -545,7 +545,6 @@ def plot():
     labels_fig = ['Spec', f'Image lev1_{image_type}', f'Image lev15_{image_type}']
 
     for i, (label, label_fig) in enumerate(zip(labels, labels_fig)):
-    # for ll, label in enumerate(labels):
 
         times = obs_times.get(label, [])
         y_values = [label_fig] * len(times)
@@ -554,7 +553,7 @@ def plot():
         if label == 'spec_fits' or not times:
             # Ensure a trace is added even if there are no files
             fig.add_trace(go.Scatter(
-                x=times if times else [None],
+                x=times if times else [start, end],
                 y=y_values if times else [label_fig],
                 mode='markers',
                 marker=dict(size=8, color=color_map[label]),
@@ -588,7 +587,7 @@ def plot():
         ),
         xaxis_title='',#'Time'
         yaxis_title='',
-        xaxis=dict(tickfont=dict(size=16), title_font=dict(size=16)),
+        xaxis=dict(tickfont=dict(size=16), title_font=dict(size=16), range=[start, end], autorange=False),
         yaxis=dict(categoryorder='array', categoryarray=labels_fig, tickfont=dict(size=16), title_font=dict(size=16)),
         legend=dict(font=dict(size=16)),
         height=400
@@ -621,12 +620,17 @@ def is_user_download_allowed(IP, archive_size_MB, max_downloads=20, max_total_MB
     today = datetime.utcnow().strftime("%Y-%m-%d")
     log = load_user_download_log()
     IP_log = log.get(IP, {}).get(today, {"count": 0, "size": 0})
+
     if IP_log["count"] >= max_downloads:
         return False, f"Download count limit ({max_downloads}) reached for today. Try again tomorrow or contact the OVRO-LWA Solar Team."
-    if IP_log["size"] + archive_size_MB > max_total_MB:
-        # return False, f"Your requesting files are {archive_size_MB} MB, exceeded the size limit({max_total_MB} MB) for today. Try it next day or contact the OVRO-LWA solar team."
+
+    requested_already_MB = IP_log["size"]
+    requested_now_MB = archive_size_MB
+    requested_total_MB = requested_already_MB + requested_now_MB
+    if requested_total_MB > max_total_MB:
         return False, (
-            f"Your requested files total approximately {int(archive_size_MB)} MB, "
+            f"You have already downloaded approximately {int(requested_already_MB)} MB today. "
+            f"This request is for {int(requested_now_MB)} MB, bringing your total to {int(requested_total_MB)} MB, "
             f"which exceeds the daily limit of {int(max_total_MB)} MB. "
             "Try again tomorrow or contact the OVRO-LWA Solar Team."
         )
