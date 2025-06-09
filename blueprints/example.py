@@ -277,7 +277,7 @@ def lwa_png_html_movie(png_paths, output_dir=f"{lwadata_dir}/{movie_subdir}"):
 
     if not png_paths:
         raise ValueError("No PNG files provided.")
-    files = sorted(png_paths)[:10]
+    files = sorted(png_paths)#[:10]
 
     # Extract date and timestamp for HTML file naming
     fname = os.path.basename(files[0])
