@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const now = new Date();
     const past = new Date();
-    past.setDate(now.getDate() - 7);
+    past.setDate(now.getDate() - 1);
 
     const formatDate = (date) => date.toISOString().slice(0, 19);
 
