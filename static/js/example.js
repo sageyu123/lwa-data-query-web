@@ -6,12 +6,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const startInput = document.getElementById('start');
     const endInput = document.getElementById('end');
     const cadenceInput = document.getElementById('cadence');
+    const imageTypeInput = document.getElementById('image_type');
     let movieOffsetDays = 0;
     let queryVersion = 0;
 
     const now = new Date();
     const past = new Date();
-    past.setDate(now.getDate() - 7);
+    past.setDate(now.getDate() - 1);
 
     const formatDate = (date) => date.toISOString().slice(0, 19);
 
@@ -79,6 +80,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 movieMessage.style.display = "none";
             } else {
                 moviePlayer.style.display = "none";
+                movieMessage.textContent = data.movie_message || "The image movie does not exist for the selected day.";
                 movieMessage.style.display = "block";
             }
 
@@ -88,10 +90,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 specMessage.style.display = "none";
             } else {
                 specImage.style.display = "none";
+                specMessage.textContent = data.spec_message || "The spectrogram does not exist for the selected day.";
                 specMessage.style.display = "block";
             }
 
             movieContainer.style.display = "block";
+
         });
     }
 
@@ -119,7 +123,9 @@ document.addEventListener('DOMContentLoaded', function () {
             formData.append('end', endInput.value);
             const cadence = cadenceInput.value;
             if (cadence) formData.append('cadence', cadence);
-
+            const imageType = document.getElementById('image_type').value;
+            formData.append('image_type', imageType);
+        
             formData.append('selected_files', JSON.stringify(selectedFiles));
 
             downloadBtn.disabled = true;
@@ -127,14 +133,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 method: 'POST',
                 body: formData
             })
-            .then(res => res.json())
+            .then(async res => {
+                if (!res.ok) {
+                    const errText = await res.text();  // Get error message from server
+                    throw new Error(errText);
+                }
+                return res.json();
+            })
             .then(data => {
                 const archiveName = data.archive_name;
                 downloadBtn.dataset.archiveName = archiveName;
                 downloadBtn.disabled = false;
             })
-            .catch(() => {
-                alert(`Failed to generate ${bundleType} bundle.`);
+            .catch(err => {
+                alert(err.message || `Failed to generate ${bundleType} bundle.`);
             });
         };
 
@@ -153,6 +165,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const start = startInput.value;
         const end = endInput.value;
         const cadence = cadenceInput.value;
+        const imageType = imageTypeInput.value;
 
         const formData = new FormData();
         formData.append('start', start);
@@ -160,6 +173,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (cadence) {
             formData.append('cadence', cadence);
         }
+        formData.append('image_type', imageType);
 
         fetch(`${baseUrl}/api/flare/query`, {
             method: 'POST',
@@ -186,6 +200,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (cadence) {
                 plotFormData.append('cadence', cadence);
             }
+            plotFormData.append('image_type', imageType);
 
             fetch(`${baseUrl}/plot`, {
                 method: 'POST',
@@ -267,5 +282,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
     
+    queryAndUpdate();
 
 });

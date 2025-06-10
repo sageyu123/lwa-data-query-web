@@ -2,13 +2,15 @@
 
 This repository contains a Flask-based web application for querying and visualizing solar data products from the [**OVRO-LWA Solar Data Pipeline**](https://github.com/ovro-eovsa/ovro-lwa-solar) (Owens Valley Radio Observatory - Long Wavelength Array). The system supports efficient database lookups for spectrogram and HDF imaging data and enables quick preview of available observations.
 
-<img width="624" alt="image" src="https://github.com/user-attachments/assets/c92445e9-0f00-4858-a0c8-cca11c2689c2" />
+<img width="622" alt="image" src="https://github.com/user-attachments/assets/82743200-191d-450c-a8b7-0dd4586d64c4" />
+
 
 ## Features
 
-- Query LWA observation metadata information stored in MySQL.
-- Display available `spec_fits`, `image_lev1` and `image_lev15` HDF files.
-- Preview quicklook spectrograms and daily imaging movies.
+- Query OVRO-LWA observation metadata information stored in MySQL.
+- Display available `Beamforming Spectrograms (FITS)`, `Level 1 Spectral Images (HDF5)` and `Level 1.5 Spectral Images (HDF5)` files.
+- Preview daily spectrogram plot and multi-frequency imaging movies.
+
 
 <!---
 - Auto movie generation for selected dates using `ffmpeg`.
@@ -82,21 +84,21 @@ Xingyao Chen – [xingyaochen0@github](https://github.com/xingyaochen0)
 
 ---
 
-## ✨ Detailed Documentation
+## Detailed Documentation
 
 ### 1. Query Interface for Solar Data Files
 
-Users can specify a custom time range, time cadence, and retrieve the available file names for three key OVRO-LWA data products:
+Users can specify a custom **`time range`** (e.g., in ISO format), **`time cadence`** in seconds (default: 10s), **`image type`** (either **Band Averaged (mfs)** or **Fine Channel (fch)**) and retrieve the available file names for three key OVRO-LWA data products:
 
-- **`spec_fits`**:  
+- **`Beamforming Spectrograms (FITS)`**:  
   Daily spectrogram FITS files from beam-formed data, with a **time resolution** of ~??s and a **frequency resolution** of ~?? kHz
 
-- **`image_lev1`**:  
-  Level-1 solar imaging HDF5 files, providing multi-frequency images integrated over 10 seconds.  
+- **`Level 1 Spectral Images (HDF5)`**:  
+  Level-1 solar imaging mfs/fch HDF5 files, providing multi-frequency images integrated over 10 seconds.  
   - These can be converted to FITS format using the utility of [`recover_fits_from_h5`](https://github.com/ovro-eovsa/ovro-lwa-solar/blob/a9521ca5d4695c7fabf03e88aced5cf636d72ebe/ovrolwasolar/utils.py#L781)
 
-- **`image_lev15`**:  
-  Level-1.5 imaging files after applying ionospheric **refraction correction**.  
+- **`Level 1.5 Spectral Images (HDF5)`**:  
+  Level-1.5 imaging mfs/fch files after applying ionospheric **refraction correction**.  
   - Refraction-corrected output using: [`refraction_correction`](https://github.com/ovro-eovsa/ovro-lwa-solar/blob/main/ovrolwasolar/refraction_correction.py)
 
 It allows users to **select data files**, **Generate .tar**, **Download .tar**, and **Generate movie** with HTML format from those image data files.
@@ -128,14 +130,14 @@ The middle section of the page visualizes the **temporal coverage** of each file
 - The legend displays the total number of files per category.
 - To handle high file counts and enhance responsiveness, the plotting is compressed using a custom `compress_time_segments()` function (see: [example.py](https://github.com/xingyaochen0/lwa-data-query-web/blob/main/blueprints/example.py)).
 
-### 3. Daily Quicklook: Spectrogram and Movie
+### 3. Daily Quicklook: Spectrogram Plot and Multi-Frequency Movie
 
 At the bottom of the page, a "Quicklook" section displays:
 
-- **Spectrogram**: A visual overview of daily beam-formed intensity data.
-- **Imaging Movie**: A snapshot-based animation from imaging PNG files.
+- **Spectrogram Plot**: A visual overview of daily beam-formed intensity data.
+- **Multi-Frequency Movie**: A snapshot-based animation from imaging PNG files.
 
-If a daily movie (named as `slow_hdf_movie_YYYYMMDD.mp4`) is not found, the server will automatically generate one in the background for the time interval **12:00–17:00 UT** of the selected start date, named as `slow_hdf_movie_YYYYMMDD_sub.mp4`, and store it in `/static/movies/`.
+If a daily movie (named as `slow_hdf_movie_YYYYMMDD.mp4`) is not found, the website will display the message: “The movie on YYYY-MM-DD does not exist.”.
 Users can interactively use the **−1 Day** / **+1 Day** buttons to view the spectrogram and movie from adjacent days, **slide the movie playback bar**, and **download the resulting movie**.
 
 

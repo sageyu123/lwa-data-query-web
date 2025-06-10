@@ -1,7 +1,7 @@
 ##python lwa-query-web_utils.py --start 2025-04-25 --end 2025-05-01
 ##python lwa-query-web_utils.py --gen movie --start 2025-04-25 --end 2025-05-01
 ##python lwa-query-web_utils.py --start 2025-04-25 --end 2025-05-01 --out /tmp/movies
-##du -h /static/movies/*.mp4
+##du -h /common/webplots/lwa-data/qlook_daily/movies/*.mp4
 import mysql.connector
 import os
 from glob import glob
@@ -23,49 +23,49 @@ def create_lwa_query_db_connection():
 # cursor = connection.cursor()
 
 ##=========================connect to database
-def get_lwa_file_lists_from_mysql(timerange):
-    start = datetime.strptime(timerange[0], "%Y-%m-%dT%H:%M:%S")
-    end   = datetime.strptime(timerange[1], "%Y-%m-%dT%H:%M:%S")
-
+def get_lwa_file_lists_from_mysql(start_utc, end_utc, image_type="mfs"):
+    start = Time(start_utc).datetime
+    end = Time(end_utc).datetime
+    # Choose table based on image_type
+    if image_type == "mfs":
+        tables = {
+            'spec_fits': 'lwa_spec_fits_files',
+            'slow_lev1': 'lwa_slow_mfs_lev1_hdf_files',
+            'slow_lev15': 'lwa_slow_mfs_lev15_hdf_files'
+        }
+    elif image_type == "fch":
+        tables = {
+            'spec_fits': 'lwa_spec_fits_files',
+            'slow_lev1': 'lwa_slow_fch_lev1_hdf_files',
+            'slow_lev15': 'lwa_slow_fch_lev15_hdf_files'
+        }
+    else:
+        raise ValueError(f"Unsupported image_type: {image_type}")
+    # Connection
     connection = create_lwa_query_db_connection()
     cursor = connection.cursor()
-
     query = """
-        SELECT file_path FROM {table}
+        SELECT file_path, obs_time FROM {table}
         WHERE obs_time BETWEEN %s AND %s
         ORDER BY obs_time
     """
-
-    tables = {
-        'spec_fits': 'lwa_spec_fits_files',
-        'slow_lev1': 'lwa_slow_lev1_hdf_files',
-        'slow_lev15': 'lwa_slow_lev15_hdf_files'
-    }
-
     file_lists = {}
-
+    obs_times = {}
     for file_type, table in tables.items():
         cursor.execute(query.format(table=table), (start, end))
         rows = cursor.fetchall()
         file_lists[file_type] = [row[0] for row in rows]
-
+        obs_times[file_type] = [row[1] for row in rows]
     cursor.close()
     connection.close()
+    return file_lists, obs_times
 
-    return (
-        file_lists['spec_fits'],
-        file_lists['slow_lev1'],
-        file_lists['slow_lev15']
-    )
-# spec, slow_lev1, slow_lev15 = get_lwa_file_lists_from_mysql(['2025-04-30T00:00:00', '2025-05-01T00:00:00'])
-# print(f"Spec FITS from MySQL: {len(spec)} found")
-# print(f"Slow_lev1 HDF from MySQL: {len(slow_lev1)} found")
-# print(f"Slow_lev15 HDF from MySQL: {len(slow_lev15)} found")
-
+# Example usage:
+# file_lists, obs_times = get_lwa_file_lists_from_mysql("2025-04-01T00:00:00", "2025-05-01T00:00:00", image_type="mfs_lev15")
 
 
 ##=========================
-def generate_movies_from_date_range(start_date_str, end_date_str, save_path='./static/movies/'):
+def generate_movies_from_date_range(start_date_str, end_date_str, save_path='/common/webplots/lwa-data/qlook_daily/movies/'):
     """
     Given a date range in 'YYYY-MM-DD' format, find PNGs under the
     corresponding LWA synoptic image directory and generate a movie per day,
@@ -111,7 +111,7 @@ def generate_movies_from_date_range(start_date_str, end_date_str, save_path='./s
 
             png_files = [f for f in all_png_files if (ts := extract_timestamp(f)) and start_time <= ts <= end_time]
             if not png_files:
-                print(f"[{date_str}] No PNGs in 12:00–03:00 window.")
+                print(f"[{date_str}] No PNGs in 12:00-03:00 window.")
                 results[date_str] = None
                 current_date += timedelta(days=1)
                 continue
@@ -126,6 +126,7 @@ def generate_movies_from_date_range(start_date_str, end_date_str, save_path='./s
 
                 output_name = f"slow_hdf_movie_{yyyy}{mm}{dd}.mp4"
                 output_path = os.path.join(save_path, output_name)
+                print("path: ", os.path.dirname(output_path))
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
                 cmd = [
@@ -136,7 +137,7 @@ def generate_movies_from_date_range(start_date_str, end_date_str, save_path='./s
                     output_path
                 ]
                 subprocess.run(cmd, check=True)
-                results[date_str] = f"/static/movies/{output_name}"
+                results[date_str] = f"{save_path}{output_name}"
 
             except Exception as e:
                 print(f"[{date_str}] Movie generation failed: {e}")
@@ -163,7 +164,7 @@ def main():
     parser.add_argument('--gen', choices=['movie'], help="Optional generation mode: e.g., 'movie'")
     parser.add_argument('--start', required=True, help="Start date in YYYY-MM-DD")
     parser.add_argument('--end', required=True, help="End date in YYYY-MM-DD")
-    parser.add_argument('--out', default='./static/movies/', help="Output directory (default: ./static/movies/)")
+    parser.add_argument('--out', default='/common/webplots/lwa-data/qlook_daily/movies/', help="Output directory (default: /common/webplots/lwa-data/qlook_daily/movies/)")
 
     args = parser.parse_args()
 

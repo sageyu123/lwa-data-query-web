@@ -19,7 +19,6 @@ from datetime import datetime, timedelta
 from glob import glob
 import shutil
 from imageio import imread
-
 import logging
 
 logger = logging.getLogger(__name__)
@@ -32,6 +31,11 @@ data_subdir = 'tmp/data-request'
 movie_subdir = 'tmp/html'
 
 ##=========================
+max_IP_downloads_per_day = 20
+max_MB_downloads_per_IP = 500.
+lwa_user_downloads_log_path = "/home/xychen/lwadata-query-web-utils/lwa_user_downloads_log.json"
+
+##=========================
 def create_lwa_query_db_connection():
     return mysql.connector.connect(
         host=os.getenv('FLARE_DB_HOST'),
@@ -41,9 +45,25 @@ def create_lwa_query_db_connection():
     )
 
 ##=========================
-def get_lwa_file_lists_from_mysql(start_utc, end_utc):
+def get_lwa_file_lists_from_mysql(start_utc, end_utc, image_type="mfs"):
     start = Time(start_utc).datetime
     end = Time(end_utc).datetime
+    # Choose table based on image_type
+    if image_type == "mfs":
+        tables = {
+            'spec_fits': 'lwa_spec_fits_files',
+            'slow_lev1': 'lwa_slow_mfs_lev1_hdf_files',
+            'slow_lev15': 'lwa_slow_mfs_lev15_hdf_files'
+        }
+    elif image_type == "fch":
+        tables = {
+            'spec_fits': 'lwa_spec_fits_files',
+            'slow_lev1': 'lwa_slow_fch_lev1_hdf_files',
+            'slow_lev15': 'lwa_slow_fch_lev15_hdf_files'
+        }
+    else:
+        raise ValueError(f"Unsupported image_type: {image_type}")
+    # Connection
     connection = create_lwa_query_db_connection()
     cursor = connection.cursor()
     query = """
@@ -51,16 +71,6 @@ def get_lwa_file_lists_from_mysql(start_utc, end_utc):
         WHERE obs_time BETWEEN %s AND %s
         ORDER BY obs_time
     """
-    # tables = {
-    #     'fast_hdf': 'lwa_fast_hdf_files',
-    #     'slow_hdf': 'lwa_slow_hdf_files',
-    #     'spec_fits': 'lwa_spec_fits_files'
-    # }
-    tables = {
-        'spec_fits': 'lwa_spec_fits_files',
-        'slow_lev1': 'lwa_slow_lev1_hdf_files',
-        'slow_lev15': 'lwa_slow_lev15_hdf_files'
-    }
     file_lists = {}
     obs_times = {}
     for file_type, table in tables.items():
@@ -111,41 +121,6 @@ def convert_local_to_filename(files_path):
     return [os.path.basename(path) for path in files_path]
 
 ##=========================
-# output_name = "slow_hdf_movie.mp4"
-def generate_movie_from_pngs(png_files, output_name=None):
-    if not png_files:
-        return None
-
-    if not output_name:
-        date_str = os.path.basename(png_files[0]).split("T")[0].split('.')[-1].replace("-", "")
-        output_name = f"slow_hdf_movie_{date_str}_sub.mp4"
-
-    temp_dir = tempfile.mkdtemp()
-    try:
-        # Symlink all PNGs into temp dir with simple names: 0001.png, 0002.png...
-        for i, f in enumerate(sorted(png_files)):
-            link_name = os.path.join(temp_dir, f"{i:04d}.png")
-            os.symlink(f, link_name)
-
-        output_path = os.path.join("static", "movies", output_name)
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
-        cmd = [
-            "ffmpeg", "-y",
-            "-framerate", "6",
-            "-i", os.path.join(temp_dir, "%04d.png"),
-            "-c:v", "libx264", "-pix_fmt", "yuv420p",
-            output_path
-        ]
-        subprocess.run(cmd, check=True)
-        return "/" + output_path
-    except Exception as e:
-        logger.error("Movie generation failed: %s", e, exc_info=True)
-        return None
-    finally:
-        shutil.rmtree(temp_dir)
-
-##=========================
 def convert_slow_hdf_to_existing_png(hdf_list):
     """
     Convert each .hdf path (lev1 or lev15) to its corresponding .png path by timestamp match,
@@ -182,7 +157,6 @@ def convert_slow_hdf_to_existing_png(hdf_list):
     return png_list
 # png_files = convert_slow_hdf_to_existing_png(slow_hdf_files)
 
-
 ##=========================
 def convert_png_to_urls(png_paths):
     """
@@ -209,7 +183,6 @@ def convert_png_to_urls(png_paths):
             logger.warning("Failed to convert %s to URL: %s", png_path, e)
             continue
     return urls
-
 
 ##=========================
 def filter_files_by_cadence(times, files, cadence_sec):
@@ -239,7 +212,6 @@ def filter_files_by_cadence(times, files, cadence_sec):
 
     return filtered_times, filtered_files
 
-
 ##=========================
 @example.route("/api/flare/query", methods=['POST'])
 def get_lwafilelist_from_database():
@@ -247,12 +219,15 @@ def get_lwafilelist_from_database():
     start = request.form['start']
     end = request.form['end']
     cadence = request.form.get('cadence', None)
+    image_type = request.form.get('image_type', 'mfs')
+    logger.info("Get lwa filelist image_type: %s", image_type)
+
     cadence_sec = int(cadence) if cadence else None
     logger.info("cadence_sec: %s", cadence_sec)
     if not start or not end:
         raise ValueError("Start and end times are required.")
 
-    file_lists, obs_times = get_lwa_file_lists_from_mysql(start, end)
+    file_lists, obs_times = get_lwa_file_lists_from_mysql(start, end, image_type=image_type)
 
     if cadence_sec:
         for key in ['slow_lev1', 'slow_lev15']:
@@ -280,7 +255,7 @@ def get_lwafilelist_from_database():
         "slow_lev15": file_lists['slow_lev15']
     })
 
-
+##=========================
 def lwa_png_html_movie(png_paths, output_dir=f"{lwadata_dir}/{movie_subdir}"):
     ''' This routine will be called after every update to the figs_mfs
         folder (in /common/webplots/lwa-data) to write the movie.html file that 
@@ -302,7 +277,7 @@ def lwa_png_html_movie(png_paths, output_dir=f"{lwadata_dir}/{movie_subdir}"):
 
     if not png_paths:
         raise ValueError("No PNG files provided.")
-    files = sorted(png_paths)[:10]
+    files = sorted(png_paths)#[:10]
 
     # Extract date and timestamp for HTML file naming
     fname = os.path.basename(files[0])
@@ -382,9 +357,7 @@ def lwa_png_html_movie(png_paths, output_dir=f"{lwadata_dir}/{movie_subdir}"):
     movie_url = f"https://ovsa.njit.edu/lwa-data/{movie_subdir}/{html_filename}"
     return movie_url
 
-
-
-#=========================works
+#=========================
 @example.route('/generate_html_movie', methods=['POST'])
 def generate_html_movie():
     selected_files_json = request.form.get('selected_files', '')
@@ -411,22 +384,6 @@ def generate_html_movie():
     # except Exception as e:
     #     return f"Could not construct movie path: {e}", 500
 
-
-##=========================
-def get_spec_and_movie_paths(slow_hdf_files):
-    png_files = convert_slow_hdf_to_existing_png(slow_hdf_files)
-    movie_path = generate_movie_from_pngs(png_files) if png_files else None
-    # if movie_path:
-    #     cache_buster = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-    #     movie_path += f"?v={cache_buster}"
-    try:
-        date_str = os.path.basename(png_files[0]).split("T")[0].split('.')[-1].replace("-", "")
-        spec_png = f"https://ovsa.njit.edu/lwa/extm/daily/{date_str}.png"
-    except Exception as e:
-        spec_png = None
-        logger.warning("Spec image link generation failed: %s", e)
-    return spec_png, movie_path
-
 ##=========================
 @example.route("/api/flare/spec_movie", methods=['POST'])
 def get_lwa_spec_movie_from_database():
@@ -434,37 +391,40 @@ def get_lwa_spec_movie_from_database():
     if not start:
         raise ValueError("Start time is required.")
     logger.info("Start time: %s", start)
-    # ## Method 1: Generate image movies for the given time range
-    # start_time = Time(start).datetime
-    # end_time = start_time + timedelta(hours=2)
-    # file_lists, _ = get_lwa_file_lists_from_mysql(start_time.isoformat(), end_time.isoformat())
-    # slow_hdf_files = file_lists['slow_lev15']#)[:20]
-    # spec_png_path, movie_path = get_spec_and_movie_paths(slow_hdf_files)
 
     start_time = Time(start).datetime
     date_str = start_time.strftime("%Y%m%d")
-    movie_filename = f"slow_hdf_movie_{date_str}.mp4"
-    movie_path_local = os.path.join("static", "movies", movie_filename)
+    date_str2 = start_time.strftime("%Y-%m-%d")
 
-    if os.path.exists(movie_path_local):
-        # Method 2: Return the existing movie if available
-        movie_path = f"/static/movies/{movie_filename}"
-        spec_png_path = f"https://ovsa.njit.edu/lwa/extm/daily/{date_str}.png"
-    else:
-        # Method 1: Generate movie dynamically from PNGs
-        end_time = start_time + timedelta(hours=6)
-        file_lists, _ = get_lwa_file_lists_from_mysql(start_time.isoformat(), end_time.isoformat())
-        slow_hdf_files = file_lists['slow_lev15']#)[:20]
-        spec_png_path, movie_path = get_spec_and_movie_paths(slow_hdf_files)
-    ##
+    ## Local server file paths (for existence check)
+    # local_spec_path = f"/common/lwa/extm/daily/{date_str}.png" ?? path not exist
+    local_movie_path = f"/common/webplots/lwa-data/qlook_daily/movies/slow_hdf_movie_{date_str}.mp4"
+
+    # Public URLs
+    spec_png_path = f"https://ovsa.njit.edu/lwa/extm/daily/{date_str}.png"
+    movie_path = f"https://ovsa.njit.edu/lwa-data/qlook_daily/movies/slow_hdf_movie_{date_str}.mp4"
+
+    # Check existence
+    # spec_exists = os.path.exists(local_spec_path)
+    movie_exists = os.path.exists(local_movie_path)
+
+    response = {}
+
+    response["spec_png_path"] = spec_png_path
     logger.info("spec_png_path: %s", spec_png_path)
-    logger.info("movie_path: %s", movie_path)
-    return jsonify({
-        "movie_path": movie_path,
-        "spec_png_path": spec_png_path
-    })
 
+    # if spec_exists:
+    #     response["spec_png_path"] = spec_png_path
+    # else:
+    #     response["spec_message"] = f"The spectrogram on {date_str2} does not exist."
+    if movie_exists:
+        response["movie_path"] = movie_path
+        logger.info("movie_path exists: %s", movie_path)
+    else:
+        response["movie_message"] = f"The movie on {date_str2} does not exist."
+        logger.info("movie_path does not exist: %s", movie_path)
 
+    return jsonify(response)
 
 # ##=========================
 '''Several method to downsample times
@@ -556,11 +516,12 @@ color_map = {
 def plot():
     start = request.form['start']
     end = request.form['end']
-    # cadence = request.form.get('cadence')
-    # cadence_sec = int(cadence) if cadence and cadence.strip().isdigit() else None
     cadence = request.form.get('cadence', None)
     cadence_sec = int(cadence) if cadence else None
-    print("ppp, cadence_sec", cadence_sec)
+    logger.info("plotly cadence_sec: %s", cadence_sec)
+
+    image_type = request.form.get('image_type', 'mfs')
+    print(f"plotly image_type: {image_type}")
 
     try:
         start = datetime.strptime(start, "%Y-%m-%dT%H:%M:%S") - timedelta(days=0)
@@ -570,7 +531,8 @@ def plot():
     if start > end:
         return jsonify({'error': 'End date must be after start date'}), 400
 
-    file_lists, obs_times = get_lwa_file_lists_from_mysql(Time(start).isot, Time(end).isot)
+    file_lists, obs_times = get_lwa_file_lists_from_mysql(Time(start).isot, Time(end).isot, image_type=image_type)
+
     if cadence_sec:
         for key in ['slow_lev1', 'slow_lev15']:
             obs_times[key], file_lists[key] = filter_files_by_cadence(
@@ -579,7 +541,8 @@ def plot():
 
     fig = go.Figure()
     labels = ['spec_fits', 'slow_lev1', 'slow_lev15']
-    labels_fig = ['spec_fits', 'image_lev1', 'image_lev15']
+    # labels_fig = ['spec_fits', 'image_lev1', 'image_lev15']
+    labels_fig = ['Spec', f'Image lev1_{image_type}', f'Image lev15_{image_type}']
 
     for i, (label, label_fig) in enumerate(zip(labels, labels_fig)):
     # for ll, label in enumerate(labels):
@@ -619,7 +582,10 @@ def plot():
     print(f"Plot Data Availability...")
 
     fig.update_layout(
-        title='Data Availability',
+        title=dict(
+            text='Data Availability',#'<b>Data Availability</b>',
+            font=dict(size=20)#, family='Arial Black'
+        ),
         xaxis_title='',#'Time'
         yaxis_title='',
         xaxis=dict(tickfont=dict(size=16), title_font=dict(size=16)),
@@ -632,6 +598,50 @@ def plot():
         'plot': pio.to_json(fig)
     })
 
+##=========================
+"""To enforce user download limits (eg, max 20 downloads per day, and max 10GB per bundle)
+Flask backend can track IPs.
+Before serving a file, it will check how many downloads from that IP today and how much total data has been sent.
+"""
+def load_user_download_log():
+    if os.path.exists(lwa_user_downloads_log_path):
+        with open(lwa_user_downloads_log_path, 'r') as f:
+            return json.load(f)
+    else:
+        # Create an empty log file
+        with open(lwa_user_downloads_log_path, 'w') as f:
+            json.dump({}, f, indent=2)
+        return {}
+
+def save_user_download_log(log):
+    with open(lwa_user_downloads_log_path, 'w') as f:
+        json.dump(log, f)
+
+def is_user_download_allowed(IP, archive_size_MB, max_downloads=20, max_total_MB=50):
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    log = load_user_download_log()
+    IP_log = log.get(IP, {}).get(today, {"count": 0, "size": 0})
+    if IP_log["count"] >= max_downloads:
+        return False, f"Download count limit ({max_downloads}) reached for today. Try again tomorrow or contact the OVRO-LWA Solar Team."
+    if IP_log["size"] + archive_size_MB > max_total_MB:
+        # return False, f"Your requesting files are {archive_size_MB} MB, exceeded the size limit({max_total_MB} MB) for today. Try it next day or contact the OVRO-LWA solar team."
+        return False, (
+            f"Your requested files total approximately {int(archive_size_MB)} MB, "
+            f"which exceeds the daily limit of {int(max_total_MB)} MB. "
+            "Try again tomorrow or contact the OVRO-LWA Solar Team."
+        )
+    return True, ""
+
+def log_user_download(IP, archive_size_MB):
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    log = load_user_download_log()
+    if IP not in log:
+        log[IP] = {}
+    if today not in log[IP]:
+        log[IP][today] = {"count": 0, "size": 0}
+    log[IP][today]["count"] += 1
+    log[IP][today]["size"] += archive_size_MB
+    save_user_download_log(log)
 
 # ##=========================
 def extract_timestamp_from_filename(filename):
@@ -650,7 +660,7 @@ def extract_timestamp_from_filename(filename):
     else:
         return "UNKNOWN"
 
-
+# ##=========================
 @example.route('/generate_bundle/<bundle_type>', methods=['POST'])
 def generate_data_bundle(bundle_type):
     start = request.form.get('start')
@@ -659,10 +669,12 @@ def generate_data_bundle(bundle_type):
     cadence = request.form.get('cadence', None)
     cadence_sec = int(cadence) if cadence else None
 
+    image_type = request.form.get('image_type', 'mfs')
+
     if not start or not end:
         return "Start and end parameters are required", 400
 
-    file_lists, obs_times = get_lwa_file_lists_from_mysql(start, end)
+    file_lists, obs_times = get_lwa_file_lists_from_mysql(start, end, image_type=image_type)
 
     if bundle_type not in file_lists:
         return f"Invalid bundle type: {bundle_type}", 400
@@ -687,13 +699,22 @@ def generate_data_bundle(bundle_type):
     if not file_paths:
         return f"No files found for {bundle_type}", 404
 
-    if len(file_paths) > 10:
-        file_paths = file_paths[:10]
-        logger.info("Limiting download to first 1000 files out of %d", len(file_paths))
+    ### Limiting download to first 10 files
+    # if len(file_paths) > 10:
+    #     file_paths = file_paths[:10]
+    #     logger.info("Limiting download to first 10 files out of %d", len(file_paths))
+    # if bundle_type == 'spec_fits':
+    #     file_paths = file_paths[:1]  # Keep only the first file
 
-    if bundle_type == 'spec_fits':
-        file_paths = file_paths[0]  # Keep only the first file
+    # To check if the data request for downloading is allowed
+    user_IP = request.remote_addr
+    estimated_size_MB = sum(os.path.getsize(f) for f in file_paths if os.path.exists(f)) / (1024 * 1024)
+    allowed, reason = is_user_download_allowed(user_IP, estimated_size_MB, max_downloads=max_IP_downloads_per_day, max_total_MB=max_MB_downloads_per_IP)
+    if not allowed:
+        return f"Download denied: {reason}", 403
+    log_user_download(user_IP, estimated_size_MB)
 
+    # Download is allowed
     bundle_names = {
         'spec_fits': 'ovro-lwa-spec',
         'slow_lev1': 'ovro-lwa-image-lev1',
@@ -704,7 +725,7 @@ def generate_data_bundle(bundle_type):
     cadence_suffix = f"_cad{cadence_sec}s" if cadence_sec else ""
 
     archive_label = bundle_names.get(bundle_type, bundle_type)
-    archive_filename = f"{archive_label}_{start_time_str}_{end_time_str}{cadence_suffix}.tar.gz"
+    archive_filename = f"{archive_label}-{image_type}{cadence_suffix}_{start_time_str}Z-{end_time_str}Z.tar.gz"
     # # Create a permanent bundle output path
     # bundle_dir = "/data1/xychen/flaskenv/lwa_data_query_request"
     bundle_dir = f"{lwadata_dir}/{data_subdir}"
@@ -726,7 +747,6 @@ def generate_data_bundle(bundle_type):
     logger.info("Generate bundle for %s from %s to %s", bundle_type, start, end)
     return jsonify({"archive_name": os.path.basename(archive_path)})
 
-
 # ##=========================
 @example.route('/download_ready_bundle/<archive_name>', methods=['GET'])
 def download_ready_bundle(archive_name):
@@ -738,7 +758,6 @@ def download_ready_bundle(archive_name):
         return send_file(archive_path, as_attachment=True, download_name=archive_name)
     else:
         return f"{archive_name} not found", 404
-
 
 # ##=========================
 @example.route("/")
