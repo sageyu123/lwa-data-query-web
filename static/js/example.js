@@ -99,14 +99,13 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Generate .tar, then Download .tar
+    // will first to give fetch summary info and prompt for confirmation
     function setupGenerateAndDownloadButtons(bundleType) {
         const generateBtn = document.getElementById(`generate-${bundleType}`);
         const downloadBtn = document.getElementById(`download-${bundleType}`);
 
         generateBtn.onclick = () => {
-            // const listId = bundleType === 'spec_fits' ? 'spec-list' :
-            //                bundleType === 'slow_lev1' ? 'image-lev1-list' :
-            //                bundleType === 'slow_lev15' ? 'image-lev15-list';
             const listId = bundleType === 'spec_fits' ? 'spec-list' :
                            bundleType === 'slow_lev1' ? 'image-lev1-list' :
                            'image-lev15-list';
@@ -125,31 +124,41 @@ document.addEventListener('DOMContentLoaded', function () {
             if (cadence) formData.append('cadence', cadence);
             const imageType = document.getElementById('image_type').value;
             formData.append('image_type', imageType);
-        
             formData.append('selected_files', JSON.stringify(selectedFiles));
 
-            downloadBtn.disabled = true;
-            fetch(`${baseUrl}/generate_bundle/${bundleType}`, {
+            // First to give fetch summary info
+            fetch(`${baseUrl}/check_bundle_summary/${bundleType}`, {
                 method: 'POST',
                 body: formData
             })
-            .then(async res => {
-                if (!res.ok) {
-                    const errText = await res.text();  // Get error message from server
-                    throw new Error(errText);
-                }
-                return res.json();
-            })
-            .then(data => {
-                const archiveName = data.archive_name;
-                downloadBtn.dataset.archiveName = archiveName;
-                downloadBtn.disabled = false;
-            })
-            .catch(err => {
-                alert(err.message || `Failed to generate ${bundleType} bundle.`);
-            });
-        };
+            .then(res => res.json())
+            .then(summary => {
+                const msg = `You selected ${summary.file_count} files, total size: ${summary.total_size.toFixed(2)} MB.\n\nDo you want to generate the .tar file?`;
+                if (!confirm(msg)) return;
 
+                downloadBtn.disabled = true;
+                fetch(`${baseUrl}/generate_bundle/${bundleType}`, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(async res => {
+                    if (!res.ok) {
+                        const errText = await res.text();  // Get error message from server
+                        throw new Error(errText);
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    const archiveName = data.archive_name;
+                    downloadBtn.dataset.archiveName = archiveName;
+                    downloadBtn.disabled = false;
+                })
+                .catch(err => {
+                    alert(err.message || `Failed to generate ${bundleType} bundle.`);
+                });
+            })
+            .catch(() => alert("Failed to retrieve file summary."));
+        };
 
         downloadBtn.onclick = () => {
             const archiveName = downloadBtn.dataset.archiveName;
@@ -158,6 +167,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         };
     }
+
 
     function queryAndUpdate() {
         const thisQuery = ++queryVersion;
