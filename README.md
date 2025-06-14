@@ -2,7 +2,7 @@
 
 This repository contains a Flask-based web application for querying and visualizing solar data products from the [**OVRO-LWA Solar Data Pipeline**](https://github.com/ovro-eovsa/ovro-lwa-solar) (Owens Valley Radio Observatory - Long Wavelength Array). The system supports efficient database lookups for spectrogram and HDF imaging data and enables quick preview of available observations.
 
-<img width="622" alt="image" src="https://github.com/user-attachments/assets/82743200-191d-450c-a8b7-0dd4586d64c4" />
+<img width="674" alt="image" src="https://github.com/user-attachments/assets/7946a4fc-d70f-4f01-813b-db8ba6db5a3c" />
 
 
 ## Features
@@ -63,7 +63,6 @@ For production deployment (e.g., `https://ovsa.njit.edu/lwadata-query/`), you ma
 - `wsgi.py` — entry point for running the app
 - `routes.py` — defines app structure and blueprint
 - `blueprints/example` — main application logic and routes
-- `static/movies/` — stores generated MP4 movies
 - `templates/` — HTML templates
 - `utils/` — utility scripts for metadata maintenance and movie generation
 
@@ -102,6 +101,11 @@ Users can specify a custom **`time range`** (e.g., in ISO format), **`time caden
   - Refraction-corrected output using: [`refraction_correction`](https://github.com/ovro-eovsa/ovro-lwa-solar/blob/main/ovrolwasolar/refraction_correction.py)
 
 It allows users to **select data files**, **Generate .tar**, **Download .tar**, and **Generate movie** with HTML format from those image data files.
+
+It shows a confirmation message to the user before generating a .tar archive, summarizes how many files are selected and their total size, and asks the user to confirm if they want to proceed.
+
+
+
 <!---
 Each category allows users to download a corresponding `.txt` list of URLs for automated downloading.
 
@@ -137,7 +141,7 @@ At the bottom of the page, a "Quicklook" section displays:
 - **Spectrogram Plot**: A visual overview of daily beam-formed intensity data.
 - **Multi-Frequency Movie**: A snapshot-based animation from imaging PNG files.
 
-If a daily movie (named as `slow_hdf_movie_YYYYMMDD.mp4`) is not found, the website will display the message: “The movie on YYYY-MM-DD does not exist.”.
+If a daily movie (named as `ovro-lwa-352.synop_mfs_image_I_movie_YYYYMMDD.mp4`) is not found, the website will display the message: “The movie on YYYY-MM-DD does not exist.”.
 Users can interactively use the **−1 Day** / **+1 Day** buttons to view the spectrogram and movie from adjacent days, **slide the movie playback bar**, and **download the resulting movie**.
 
 
@@ -163,6 +167,9 @@ python lwadata2sql.py --start 2025-04-01T00:00:00 --end 2025-05-01T00:00:00
 # Manually delete records for a time range
 python lwadata2sql.py --start 2025-04-30T00:00:00 --end 2025-05-01T00:00:00 --delete
 ```
+
+## Cronjob Setup
+
 
 ---
 
