@@ -522,7 +522,6 @@ def plot():
     logger.info("plotly cadence_sec: %s", cadence_sec)
 
     image_type = request.form.get('image_type', 'mfs')
-    print(f"plotly image_type: {image_type}")
 
     try:
         start = datetime.strptime(start, "%Y-%m-%dT%H:%M:%S") - timedelta(days=0)
@@ -557,7 +556,7 @@ def plot():
                 x=times if times else [start, end],
                 y=y_values if times else [label_fig],
                 mode='markers',
-                marker=dict(size=8, color=color_map[label]),
+                marker=dict(size=8 if times else 0.001, color=color_map[label]),
                 name=label_with_count,
                 showlegend=True# if times else False
             ))
@@ -578,8 +577,6 @@ def plot():
                     showlegend=show_legend
                 ))
                 show_legend = False
-
-    print(f"Plot Data Availability...")
 
     fig.update_layout(
         title=dict(
@@ -648,6 +645,7 @@ def log_user_download(IP, archive_size_MB):
     log[IP][today]["size"] += archive_size_MB
     save_user_download_log(log)
 
+
 # ##=========================
 def extract_timestamp_from_filename(filename):
     """
@@ -666,14 +664,47 @@ def extract_timestamp_from_filename(filename):
         return "UNKNOWN"
 
 # ##=========================
+@example.route('/check_bundle_summary/<bundle_type>', methods=['POST'])
+def check_bundle_summary(bundle_type):
+    start = request.form.get('start')
+    end = request.form.get('end')
+    cadence = request.form.get('cadence', None)
+    cadence_sec = int(cadence) if cadence else None
+    image_type = request.form.get('image_type', 'mfs')
+
+    if not start or not end:
+        return "Start and end parameters are required", 400
+
+    file_lists, obs_times = get_lwa_file_lists_from_mysql(start, end, image_type=image_type)
+
+    if bundle_type not in file_lists:
+        return jsonify({"error": "Invalid bundle type"}), 400
+
+    if cadence_sec and bundle_type in ['slow_lev1', 'slow_lev15']:
+        obs_times[bundle_type], file_lists[bundle_type] = filter_files_by_cadence(
+            obs_times[bundle_type], file_lists[bundle_type], cadence_sec
+        )
+
+    selected_files_json = request.form.get('selected_files')
+    if selected_files_json:
+        try:
+            selected_files = set(json.loads(selected_files_json))
+            file_paths = [f for f in file_lists[bundle_type] if os.path.basename(f) in selected_files]
+        except Exception as e:
+            return jsonify({"error": f"Invalid selected_files format: {e}"}), 400
+    else:
+        file_paths = file_lists[bundle_type]
+
+    total_size_MB = sum(os.path.getsize(f) for f in file_paths if os.path.exists(f)) / (1024 * 1024)
+    return jsonify({"file_count": len(file_paths), "total_size": int(total_size_MB)})
+
+# ##=========================
 @example.route('/generate_bundle/<bundle_type>', methods=['POST'])
 def generate_data_bundle(bundle_type):
     start = request.form.get('start')
     end = request.form.get('end')
-
     cadence = request.form.get('cadence', None)
     cadence_sec = int(cadence) if cadence else None
-
     image_type = request.form.get('image_type', 'mfs')
 
     if not start or not end:
@@ -704,15 +735,14 @@ def generate_data_bundle(bundle_type):
     if not file_paths:
         return f"No files found for {bundle_type}", 404
 
-    ### Limiting download to first 10 files
-    # if len(file_paths) > 10:
-    #     file_paths = file_paths[:10]
-    #     logger.info("Limiting download to first 10 files out of %d", len(file_paths))
-    # if bundle_type == 'spec_fits':
-    #     file_paths = file_paths[:1]  # Keep only the first file
-
     # To check if the data request for downloading is allowed
-    user_IP = request.remote_addr
+    # user_IP = request.remote_addr
+    if 'X-Forwarded-For' in request.headers:
+        # May contain multiple IPs if behind multiple proxies
+        user_IP = request.headers['X-Forwarded-For'].split(',')[0].strip()
+    else:
+        user_IP = request.remote_addr
+
     estimated_size_MB = sum(os.path.getsize(f) for f in file_paths if os.path.exists(f)) / (1024 * 1024)
     allowed, reason = is_user_download_allowed(user_IP, estimated_size_MB, max_downloads=max_IP_downloads_per_day, max_total_MB=max_MB_downloads_per_IP)
     if not allowed:
