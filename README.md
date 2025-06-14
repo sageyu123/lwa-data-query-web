@@ -102,7 +102,7 @@ Users can specify a custom **`time range`** (e.g., in ISO format), **`time caden
 
 It allows users to **select data files**, **Generate .tar**, **Download .tar**, and **Generate movie** with HTML format from those image data files.
 
-It shows a confirmation message to the user before generating a .tar archive, summarizes how many files are selected and their total size, and asks the user to confirm if they want to proceed.
+It shows a **confirmation message** to the user before generating a .tar archive, summarizes how many files are selected and their total size, and asks the user to confirm if they want to proceed.
 
 
 
@@ -168,14 +168,13 @@ python lwadata2sql.py --start 2025-04-01T00:00:00 --end 2025-05-01T00:00:00
 python lwadata2sql.py --start 2025-04-30T00:00:00 --end 2025-05-01T00:00:00 --delete
 ```
 
-## Cronjob Setup
 
 
 ---
 
-## Daily Movie Cronjob
+## Daily Movie Generation
 
-A cron job can also be configured to automatically generate daily movies stored in `/static/movies/`, using imaging PNGs from [https://ovsa.njit.edu/lwa-data/qlook_images/slow/synop/](https://ovsa.njit.edu/lwa-data/qlook_images/slow/synop/).
+The daily movies can be generated, using imaging PNGs from [https://ovsa.njit.edu/lwa-data/qlook_images/slow/synop/](https://ovsa.njit.edu/lwa-data/qlook_images/slow/synop/).
 
 You can also use the script directly via command line:
 
@@ -184,8 +183,19 @@ You can also use the script directly via command line:
 python lwa-query-web_utils.py --gen movie --start 2025-04-25 --end 2025-05-01
 ```
 
-The output movies are named `slow_hdf_movie_YYYYMMDD.mp4`. Each full-day movie may last **~5 minutes** and take approximately **20 MB** of disk space.
+The output movies are named `ovro-lwa-352.synop_mfs_image_I_movie_YYYYMMDD.mp4`. Each full-day movie may last **~5 minutes** and take approximately **20 MB** of disk space.
 
+---
+
+## Daily Cronjob Setup
+
+This cronjob, using `run_queryweb_daily.sh`, automates two key daily tasks for the OVRO-LWA data query system, scheduled to run at 06:00 UTC.
+
+- Insert data into the SQL database with new file metadata between 12:00 UTC yesterday and 03:00 UTC today.
+- Generate daily multi-frequency movies for the date range from yesterday to today.
+
+
+---
 
 ## Automatic Cleanup
 
