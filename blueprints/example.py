@@ -395,14 +395,15 @@ def get_lwa_spec_movie_from_database():
     start_time = Time(start).datetime
     date_str = start_time.strftime("%Y%m%d")
     date_str2 = start_time.strftime("%Y-%m-%d")
+    yyyy = start_time.strftime("%Y")
 
     ## Local server file paths (for existence check)
     # local_spec_path = f"/common/lwa/extm/daily/{date_str}.png" ?? path not exist
-    local_movie_path = f"/common/webplots/lwa-data/qlook_daily/movies/slow_hdf_movie_{date_str}.mp4"
+    local_movie_path = f"/common/webplots/lwa-data/qlook_daily/movies/{yyyy}/ovro-lwa-352.synop_mfs_image_I_movie_{date_str}.mp4"
 
     # Public URLs
     spec_png_path = f"https://ovsa.njit.edu/lwa/extm/daily/{date_str}.png"
-    movie_path = f"https://ovsa.njit.edu/lwa-data/qlook_daily/movies/slow_hdf_movie_{date_str}.mp4"
+    movie_path = f"https://ovsa.njit.edu/lwa-data/qlook_daily/movies/{yyyy}/ovro-lwa-352.synop_mfs_image_I_movie_{date_str}.mp4"
 
     # Check existence
     # spec_exists = os.path.exists(local_spec_path)
