@@ -2,7 +2,7 @@
 
 This repository contains a Flask-based web application for querying and visualizing solar data products from the [**OVRO-LWA Solar Data Pipeline**](https://github.com/ovro-eovsa/ovro-lwa-solar) (Owens Valley Radio Observatory - Long Wavelength Array). The system supports efficient database lookups for spectrogram and HDF imaging data and enables quick preview of available observations.
 
-<img width="622" alt="image" src="https://github.com/user-attachments/assets/82743200-191d-450c-a8b7-0dd4586d64c4" />
+<img width="674" alt="image" src="https://github.com/user-attachments/assets/7946a4fc-d70f-4f01-813b-db8ba6db5a3c" />
 
 
 ## Features
@@ -63,7 +63,6 @@ For production deployment (e.g., `https://ovsa.njit.edu/lwadata-query/`), you ma
 - `wsgi.py` — entry point for running the app
 - `routes.py` — defines app structure and blueprint
 - `blueprints/example` — main application logic and routes
-- `static/movies/` — stores generated MP4 movies
 - `templates/` — HTML templates
 - `utils/` — utility scripts for metadata maintenance and movie generation
 
@@ -102,6 +101,11 @@ Users can specify a custom **`time range`** (e.g., in ISO format), **`time caden
   - Refraction-corrected output using: [`refraction_correction`](https://github.com/ovro-eovsa/ovro-lwa-solar/blob/main/ovrolwasolar/refraction_correction.py)
 
 It allows users to **select data files**, **Generate .tar**, **Download .tar**, and **Generate movie** with HTML format from those image data files.
+
+It shows a **confirmation message** to the user before generating a .tar archive, summarizes how many files are selected and their total size, and asks the user to confirm if they want to proceed.
+
+
+
 <!---
 Each category allows users to download a corresponding `.txt` list of URLs for automated downloading.
 
@@ -137,7 +141,7 @@ At the bottom of the page, a "Quicklook" section displays:
 - **Spectrogram Plot**: A visual overview of daily beam-formed intensity data.
 - **Multi-Frequency Movie**: A snapshot-based animation from imaging PNG files.
 
-If a daily movie (named as `slow_hdf_movie_YYYYMMDD.mp4`) is not found, the website will display the message: “The movie on YYYY-MM-DD does not exist.”.
+If a daily movie (named as `ovro-lwa-352.synop_mfs_image_I_movie_YYYYMMDD.mp4`) is not found, the website will display the message: “The movie on YYYY-MM-DD does not exist.”.
 Users can interactively use the **−1 Day** / **+1 Day** buttons to view the spectrogram and movie from adjacent days, **slide the movie playback bar**, and **download the resulting movie**.
 
 
@@ -164,11 +168,13 @@ python lwadata2sql.py --start 2025-04-01T00:00:00 --end 2025-05-01T00:00:00
 python lwadata2sql.py --start 2025-04-30T00:00:00 --end 2025-05-01T00:00:00 --delete
 ```
 
+
+
 ---
 
-## Daily Movie Cronjob
+## Daily Movie Generation
 
-A cron job can also be configured to automatically generate daily movies stored in `/static/movies/`, using imaging PNGs from [https://ovsa.njit.edu/lwa-data/qlook_images/slow/synop/](https://ovsa.njit.edu/lwa-data/qlook_images/slow/synop/).
+The daily movies can be generated, using imaging PNGs from [https://ovsa.njit.edu/lwa-data/qlook_images/slow/synop/](https://ovsa.njit.edu/lwa-data/qlook_images/slow/synop/).
 
 You can also use the script directly via command line:
 
@@ -177,8 +183,19 @@ You can also use the script directly via command line:
 python lwa-query-web_utils.py --gen movie --start 2025-04-25 --end 2025-05-01
 ```
 
-The output movies are named `slow_hdf_movie_YYYYMMDD.mp4`. Each full-day movie may last **~5 minutes** and take approximately **20 MB** of disk space.
+The output movies are named `ovro-lwa-352.synop_mfs_image_I_movie_YYYYMMDD.mp4`. Each full-day movie may last **~5 minutes** and take approximately **20 MB** of disk space.
 
+---
+
+## Daily Cronjob Setup
+
+This cronjob, using `run_queryweb_daily.sh`, automates two key daily tasks for the OVRO-LWA data query system, scheduled to run at 06:00 UTC.
+
+- Insert data into the SQL database with new file metadata between 12:00 UTC yesterday and 03:00 UTC today.
+- Generate daily multi-frequency movies for the date range from yesterday to today.
+
+
+---
 
 ## Automatic Cleanup
 
