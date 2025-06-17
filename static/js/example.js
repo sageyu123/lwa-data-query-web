@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const now = new Date();
     const past = new Date();
-    past.setDate(now.getDate() - 1);
+    past.setDate(now.getDate() - 3);
 
     const formatDate = (date) => date.toISOString().slice(0, 19);
 
@@ -25,7 +25,6 @@ document.addEventListener('DOMContentLoaded', function () {
         allowInput: true,
         time_24hr: true,
     });
-
 
     function updateFileList(elementId, files) {
         const listElement = document.getElementById(elementId);
@@ -133,7 +132,12 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .then(res => res.json())
             .then(summary => {
-                const msg = `You selected ${summary.file_count} files, total size: ${summary.total_size.toFixed(2)} MB.\n\nDo you want to generate the .tar file?`;
+                // const msg = `You selected ${summary.file_count} files, total size: ${summary.total_now_size.toFixed(2)} MB.\n\nDo you want to generate the .tar file?`;
+                const msg = `You selected ${summary.file_count} files.\n` +
+                            `This request is for ${summary.total_now_size} MB.\n` +
+                            `You have already downloaded approximately ${summary.already_downloaded_MB} MB today.\n` +
+                            `After this, your total would be ${summary.total_after_MB} MB (daily limit: ${summary.limit_MB} MB).\n\n` +
+                            `Do you want to generate the .tar file?`;
                 if (!confirm(msg)) return;
 
                 downloadBtn.disabled = true;
@@ -291,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function () {
             console.warn(`Movie button ${btnId} not found`);
         }
     });
-    
+
     queryAndUpdate();
 
 });

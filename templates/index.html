@@ -12,9 +12,9 @@
 {% assets "example_css" %}
 <link rel="stylesheet" href="{{ ASSET_URL }}" />
 {% endassets %}
-{% assets "example_js" %}
+<!-- {% assets "example_js" %}
 <script type="text/javascript" src="{{ ASSET_URL }}"></script>
-{% endassets %}
+{% endassets %} -->
 <script src="{{ url_for('static', filename='js/example.js') }}"></script>
 <script type="text/javascript">
   var isOvsa = {{ 'true' if hostname == 'ovsa' else 'false' }};

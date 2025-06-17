@@ -696,7 +696,28 @@ def check_bundle_summary(bundle_type):
         file_paths = file_lists[bundle_type]
 
     total_size_MB = sum(os.path.getsize(f) for f in file_paths if os.path.exists(f)) / (1024 * 1024)
-    return jsonify({"file_count": len(file_paths), "total_size": int(total_size_MB)})
+
+    ## Get the IP information
+    if 'X-Forwarded-For' in request.headers:
+        # May contain multiple IPs if behind multiple proxies
+        user_IP = request.headers['X-Forwarded-For'].split(',')[0].strip()
+    else:
+        user_IP = request.remote_addr
+
+    estimated_size_MB = sum(os.path.getsize(f) for f in file_paths if os.path.exists(f)) / (1024 * 1024)
+    log = load_user_download_log()
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    already_downloaded_MB = log.get(user_IP, {}).get(today, {}).get("size", 0)
+    total_after_MB = already_downloaded_MB + total_size_MB
+    # return jsonify({"file_count": len(file_paths), "total_now_size": int(total_size_MB)})
+    return jsonify({
+        "file_count": len(file_paths),
+        "total_now_size": int(total_size_MB),
+        "already_downloaded_MB": int(already_downloaded_MB),
+        "limit_MB": int(max_MB_downloads_per_IP),
+        "total_after_MB": int(total_after_MB)
+    })
+
 
 # ##=========================
 @example.route('/generate_bundle/<bundle_type>', methods=['POST'])
