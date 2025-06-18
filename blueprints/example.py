@@ -409,7 +409,7 @@ def get_lwa_spec_movie_from_database():
     yyyy = start_time.strftime("%Y")
 
     ## Local server file paths (for existence check)
-    # local_spec_path = f"/common/lwa/extm/daily/{date_str}.png" ?? path not exist
+    local_spec_path = f"/common/lwa/spec_v2/daily/{date_str}.png"
     local_movie_path = f"/common/webplots/lwa-data/qlook_daily/movies/{yyyy}/ovro-lwa-352.synop_mfs_image_I_movie_{date_str}.mp4"
 
     # Public URLs
@@ -417,18 +417,17 @@ def get_lwa_spec_movie_from_database():
     movie_path = f"https://ovsa.njit.edu/lwa-data/qlook_daily/movies/{yyyy}/ovro-lwa-352.synop_mfs_image_I_movie_{date_str}.mp4"
 
     # Check existence
-    # spec_exists = os.path.exists(local_spec_path)
+    spec_exists = os.path.exists(local_spec_path)
     movie_exists = os.path.exists(local_movie_path)
 
     response = {}
 
-    response["spec_png_path"] = spec_png_path
-    logger.info("spec_png_path: %s", spec_png_path)
-
-    # if spec_exists:
-    #     response["spec_png_path"] = spec_png_path
-    # else:
-    #     response["spec_message"] = f"The spectrogram on {date_str2} does not exist."
+    if spec_exists:
+        response["spec_png_path"] = spec_png_path
+        logger.info("spec_png_path: %s", spec_png_path)
+    else:
+        response["spec_message"] = f"The spectrogram plot on {date_str2} does not exist."
+        logger.info("spec_png_path does not exist: %s", spec_png_path)
     if movie_exists:
         response["movie_path"] = movie_path
         logger.info("movie_path exists: %s", movie_path)
