@@ -131,7 +131,7 @@ def get_path_lwa_files(timerange, file_type="spec"):
         date_cursor = start_1daybf
         while date_cursor <= end_1dayaf:
             y, m, d = date_cursor.strftime("%Y"), date_cursor.strftime("%m"), date_cursor.strftime("%d")
-            for disk in ['nas6', 'nas7']:
+            for disk in ['nas7']:#'nas6', 
                 files_collected += glob(f"/{disk}/ovro-lwa-data/hdf/slow/{level_dir}/{y}/{m}/{d}/{pattern}")
             date_cursor += timedelta(days=1)
     # Filter and return sorted paths
