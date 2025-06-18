@@ -665,6 +665,7 @@ def plot():
 Flask backend can track IPs.
 Before serving a file, it will check how many downloads from that IP today and how much total data has been sent.
 """
+@runtime_report
 def load_user_download_log():
     if os.path.exists(lwa_user_downloads_log_path):
         with open(lwa_user_downloads_log_path, 'r') as f:
@@ -675,10 +676,12 @@ def load_user_download_log():
             json.dump({}, f, indent=2)
         return {}
 
+@runtime_report
 def save_user_download_log(log):
     with open(lwa_user_downloads_log_path, 'w') as f:
         json.dump(log, f)
 
+@runtime_report
 def is_user_download_allowed(IP, archive_size_MB, max_downloads=20, max_total_MB=50):
     today = datetime.utcnow().strftime("%Y-%m-%d")
     log = load_user_download_log()
@@ -699,6 +702,7 @@ def is_user_download_allowed(IP, archive_size_MB, max_downloads=20, max_total_MB
         )
     return True, ""
 
+@runtime_report
 def log_user_download(IP, archive_size_MB):
     today = datetime.utcnow().strftime("%Y-%m-%d")
     log = load_user_download_log()
@@ -712,6 +716,7 @@ def log_user_download(IP, archive_size_MB):
 
 
 # ##=========================
+@runtime_report
 def extract_timestamp_from_filename(filename):
     """
     Extract YYYY-MM-DDTHHMMSSZ-like timestamp from filename and convert to YYYYMMDDTHHMMSS.
