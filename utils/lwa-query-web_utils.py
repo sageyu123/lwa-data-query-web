@@ -6,6 +6,7 @@ import mysql.connector
 import os
 from glob import glob
 from datetime import datetime, timedelta
+from astropy.time import Time
 import subprocess
 import tempfile
 import shutil

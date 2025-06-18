@@ -16,12 +16,46 @@ import subprocess
 import tempfile
 from astropy.time import Time
 from datetime import datetime, timedelta
+import time
 from glob import glob
 import shutil
 from imageio import imread
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+from functools import wraps
+
+def format_duration(seconds):
+    """Format seconds into appropriate unit string."""
+    if seconds < 60:
+        return f"{seconds:.2f} seconds"
+    minutes = seconds / 60
+    if minutes < 60:
+        return f"{minutes:.2f} minutes"
+    hours = minutes / 60
+    if hours < 24:
+        return f"{hours:.2f} hours"
+    days = hours / 24
+    return f"{days:.2f} days"
+
+
+def runtime_report(func):
+    """Decorator to report runtime of a function and log completion time."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        end = time.time()
+        duration = end - start
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print(
+            f"'{func.__name__}' completed at {now}; "
+            f"runtime: {format_duration(duration)}"
+        )
+        return result
+    return wrapper
 
 ##=========================
 example = Blueprint('example', __name__, template_folder='templates')
@@ -45,6 +79,7 @@ def create_lwa_query_db_connection():
     )
 
 ##=========================
+@runtime_report
 def get_lwa_file_lists_from_mysql(start_utc, end_utc, image_type="mfs"):
     start = Time(start_utc).datetime
     end = Time(end_utc).datetime
@@ -94,6 +129,7 @@ def get_lwa_file_lists_from_mysql(start_utc, end_utc, image_type="mfs"):
     return file_lists, obs_times
 
 ##=========================
+@runtime_report
 def convert_local_to_urls(files_path):
     """
     Convert local HDF paths to public HTTPS URLs.
@@ -119,6 +155,7 @@ def convert_local_to_urls(files_path):
     return urls
 
 ##=========================
+@runtime_report
 def convert_local_to_filename(files_path):
     """
     Convert local HDF paths to filename only.
@@ -132,6 +169,7 @@ def convert_local_to_filename(files_path):
     return [os.path.basename(path) for path in files_path]
 
 ##=========================
+@runtime_report
 def convert_slow_hdf_to_existing_png(hdf_list):
     """
     Convert each .hdf path (lev1 or lev15) to its corresponding .png path by timestamp match,
@@ -169,6 +207,7 @@ def convert_slow_hdf_to_existing_png(hdf_list):
 # png_files = convert_slow_hdf_to_existing_png(slow_hdf_files)
 
 ##=========================
+@runtime_report
 def convert_png_to_urls(png_paths):
     """
     Convert full PNG file paths to public HTTPS URLs based on path pattern.
@@ -196,6 +235,7 @@ def convert_png_to_urls(png_paths):
     return urls
 
 ##=========================
+@runtime_report
 def filter_files_by_cadence(times, files, cadence_sec):
     """
     Filter (time, file) pairs to enforce a minimum time spacing (cadence).
@@ -267,6 +307,7 @@ def get_lwafilelist_from_database():
     })
 
 ##=========================
+@runtime_report
 def lwa_png_html_movie(png_paths, output_dir=f"{lwadata_dir}/{movie_subdir}"):
     ''' This routine will be called after every update to the figs_mfs
         folder (in /common/webplots/lwa-data) to write the movie.html file that 
@@ -440,6 +481,7 @@ def get_lwa_spec_movie_from_database():
 # ##=========================
 '''Several method to downsample times
 '''
+@runtime_report
 def downsample(times, max_points=1000):
     if len(times) <= max_points:
         return times
@@ -454,6 +496,7 @@ def bin_times(times, freq='1min'):
     df['binned'] = df['time'].dt.floor(freq)
     return df['binned'].drop_duplicates().tolist()
 
+@runtime_report
 def segment_continuous_times(times, gap='1min'):
     """
     Segments input times into continuous blocks where time difference <= gap.
@@ -485,6 +528,7 @@ def segment_continuous_times(times, gap='1min'):
     segments.append(current_segment)
     return segments
 
+@runtime_report
 def compress_time_segments(times, max_gap_seconds=60):
     """
     Reduce a list of datetime points to segments with only start and end time
@@ -621,6 +665,7 @@ def plot():
 Flask backend can track IPs.
 Before serving a file, it will check how many downloads from that IP today and how much total data has been sent.
 """
+@runtime_report
 def load_user_download_log():
     if os.path.exists(lwa_user_downloads_log_path):
         with open(lwa_user_downloads_log_path, 'r') as f:
@@ -631,10 +676,12 @@ def load_user_download_log():
             json.dump({}, f, indent=2)
         return {}
 
+@runtime_report
 def save_user_download_log(log):
     with open(lwa_user_downloads_log_path, 'w') as f:
         json.dump(log, f)
 
+@runtime_report
 def is_user_download_allowed(IP, archive_size_MB, max_downloads=20, max_total_MB=50):
     today = datetime.utcnow().strftime("%Y-%m-%d")
     log = load_user_download_log()
@@ -655,6 +702,7 @@ def is_user_download_allowed(IP, archive_size_MB, max_downloads=20, max_total_MB
         )
     return True, ""
 
+@runtime_report
 def log_user_download(IP, archive_size_MB):
     today = datetime.utcnow().strftime("%Y-%m-%d")
     log = load_user_download_log()
@@ -668,6 +716,7 @@ def log_user_download(IP, archive_size_MB):
 
 
 # ##=========================
+@runtime_report
 def extract_timestamp_from_filename(filename):
     """
     Extract YYYY-MM-DDTHHMMSSZ-like timestamp from filename and convert to YYYYMMDDTHHMMSS.
