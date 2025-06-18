@@ -772,7 +772,7 @@ def check_bundle_summary(bundle_type):
     else:
         file_paths = file_lists[bundle_type]
 
-    with ThreadPoolExecutor(max_workers=16) as executor:
+    with ThreadPoolExecutor(max_workers=10) as executor:
         sizes = list(executor.map(safe_getsize, file_paths))
     total_size_MB = sum(sizes) / (1024 * 1024)
 
@@ -842,7 +842,7 @@ def generate_data_bundle(bundle_type):
     else:
         user_IP = request.remote_addr
 
-    with ThreadPoolExecutor(max_workers=16) as executor:
+    with ThreadPoolExecutor(max_workers=10) as executor:
         sizes = list(executor.map(safe_getsize, file_paths))
     estimated_size_MB = sum(sizes) / (1024 * 1024)
     allowed, reason = is_user_download_allowed(user_IP, estimated_size_MB, max_downloads=max_IP_downloads_per_day, max_total_MB=max_MB_downloads_per_IP)
