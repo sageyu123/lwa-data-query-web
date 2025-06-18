@@ -66,7 +66,12 @@ def get_lwa_file_lists_from_mysql(start_utc, end_utc, image_type="mfs"):
     # Connection
     connection = create_lwa_query_db_connection()
     cursor = connection.cursor()
-    query = """
+    query_spec = """
+        SELECT file_path, start_time, end_time FROM lwa_spec_fits_files
+        WHERE start_time <= %s AND end_time >= %s
+        ORDER BY start_time
+    """
+    query_img = """
         SELECT file_path, obs_time FROM {table}
         WHERE obs_time BETWEEN %s AND %s
         ORDER BY obs_time
@@ -74,10 +79,16 @@ def get_lwa_file_lists_from_mysql(start_utc, end_utc, image_type="mfs"):
     file_lists = {}
     obs_times = {}
     for file_type, table in tables.items():
-        cursor.execute(query.format(table=table), (start, end))
-        rows = cursor.fetchall()
-        file_lists[file_type] = [row[0] for row in rows]
-        obs_times[file_type] = [row[1] for row in rows]
+        if file_type == 'spec_fits':
+            cursor.execute(query_spec, (end, start))
+            rows = cursor.fetchall()
+            file_lists[file_type] = [row[0] for row in rows]
+            obs_times[file_type] = [(row[1], row[2]) for row in rows]
+        else:
+            cursor.execute(query_img.format(table=table), (start, end))
+            rows = cursor.fetchall()
+            file_lists[file_type] = [row[0] for row in rows]
+            obs_times[file_type] = [row[1] for row in rows]
     cursor.close()
     connection.close()
     return file_lists, obs_times
@@ -398,7 +409,7 @@ def get_lwa_spec_movie_from_database():
     yyyy = start_time.strftime("%Y")
 
     ## Local server file paths (for existence check)
-    # local_spec_path = f"/common/lwa/extm/daily/{date_str}.png" ?? path not exist
+    local_spec_path = f"/common/lwa/spec_v2/daily/{date_str}.png"
     local_movie_path = f"/common/webplots/lwa-data/qlook_daily/movies/{yyyy}/ovro-lwa-352.synop_mfs_image_I_movie_{date_str}.mp4"
 
     # Public URLs
@@ -406,18 +417,17 @@ def get_lwa_spec_movie_from_database():
     movie_path = f"https://ovsa.njit.edu/lwa-data/qlook_daily/movies/{yyyy}/ovro-lwa-352.synop_mfs_image_I_movie_{date_str}.mp4"
 
     # Check existence
-    # spec_exists = os.path.exists(local_spec_path)
+    spec_exists = os.path.exists(local_spec_path)
     movie_exists = os.path.exists(local_movie_path)
 
     response = {}
 
-    response["spec_png_path"] = spec_png_path
-    logger.info("spec_png_path: %s", spec_png_path)
-
-    # if spec_exists:
-    #     response["spec_png_path"] = spec_png_path
-    # else:
-    #     response["spec_message"] = f"The spectrogram on {date_str2} does not exist."
+    if spec_exists:
+        response["spec_png_path"] = spec_png_path
+        logger.info("spec_png_path: %s", spec_png_path)
+    else:
+        response["spec_message"] = f"The spectrogram plot on {date_str2} does not exist."
+        logger.info("spec_png_path does not exist: %s", spec_png_path)
     if movie_exists:
         response["movie_path"] = movie_path
         logger.info("movie_path exists: %s", movie_path)
@@ -550,16 +560,27 @@ def plot():
         y_values = [label_fig] * len(times)
         label_with_count = f"N({label_fig}) = {len(times)}" if times else f"N({label_fig}) = 0"
 
-        if label == 'spec_fits' or not times:
-            # Ensure a trace is added even if there are no files
+        if not times:
             fig.add_trace(go.Scatter(
-                x=times if times else [start, end],
-                y=y_values if times else [label_fig],
+                x=[start, end],
+                y=[label_fig],
                 mode='markers',
-                marker=dict(size=8 if times else 0.001, color=color_map[label]),
+                marker=dict(size=0.001, color=color_map[label]),
                 name=label_with_count,
-                showlegend=True# if times else False
+                showlegend=True
             ))
+        elif label == 'spec_fits':
+            show_legend = True
+            for sp_start, sp_end in times:
+                fig.add_trace(go.Scatter(
+                    x=[sp_start, sp_end],
+                    y=[label_fig, label_fig],
+                    mode='lines',
+                    line=dict(width=15, color=color_map[label]),
+                    name=label_with_count,
+                    showlegend=show_legend
+                ))
+                show_legend = False
         else:
             if label == 'slow_lev1':
                 segments = compress_time_segments(times, max_gap_seconds=600)#180
