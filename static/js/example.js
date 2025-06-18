@@ -134,10 +134,10 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(summary => {
                 // const msg = `You selected ${summary.file_count} files, total size: ${summary.total_now_size.toFixed(2)} MB.\n\nDo you want to generate the .tar file?`;
                 const msg = `You selected ${summary.file_count} files.\n` +
-                            `This request is for ${summary.total_now_size} MB.\n` +
+                            `This request totals ${summary.total_now_size} MB.\n` +
                             `You have already downloaded approximately ${summary.already_downloaded_MB} MB today.\n` +
-                            `After this, your total would be ${summary.total_after_MB} MB (daily limit: ${summary.limit_MB} MB).\n\n` +
-                            `Do you want to generate the .tar file?`;
+                            `After this, your total for today will be ${summary.total_after_MB} MB (daily limit: ${summary.limit_MB} MB).\n\n` +
+                            `Would you like to generate the .tar file?`;
                 if (!confirm(msg)) return;
 
                 downloadBtn.disabled = true;
