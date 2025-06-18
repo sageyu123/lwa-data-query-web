@@ -21,9 +21,17 @@ from glob import glob
 import shutil
 from imageio import imread
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
 
+def safe_getsize(f):
+    try:
+        if os.path.exists(f):
+            return os.path.getsize(f)
+    except Exception:
+        return 0
+    return 0
 
 from functools import wraps
 
@@ -155,7 +163,6 @@ def convert_local_to_urls(files_path):
     return urls
 
 ##=========================
-@runtime_report
 def convert_local_to_filename(files_path):
     """
     Convert local HDF paths to filename only.
@@ -528,7 +535,7 @@ def segment_continuous_times(times, gap='1min'):
     segments.append(current_segment)
     return segments
 
-@runtime_report
+
 def compress_time_segments(times, max_gap_seconds=60):
     """
     Reduce a list of datetime points to segments with only start and end time
@@ -665,7 +672,7 @@ def plot():
 Flask backend can track IPs.
 Before serving a file, it will check how many downloads from that IP today and how much total data has been sent.
 """
-@runtime_report
+
 def load_user_download_log():
     if os.path.exists(lwa_user_downloads_log_path):
         with open(lwa_user_downloads_log_path, 'r') as f:
@@ -676,12 +683,12 @@ def load_user_download_log():
             json.dump({}, f, indent=2)
         return {}
 
-@runtime_report
+
 def save_user_download_log(log):
     with open(lwa_user_downloads_log_path, 'w') as f:
         json.dump(log, f)
 
-@runtime_report
+
 def is_user_download_allowed(IP, archive_size_MB, max_downloads=20, max_total_MB=50):
     today = datetime.utcnow().strftime("%Y-%m-%d")
     log = load_user_download_log()
@@ -702,7 +709,7 @@ def is_user_download_allowed(IP, archive_size_MB, max_downloads=20, max_total_MB
         )
     return True, ""
 
-@runtime_report
+
 def log_user_download(IP, archive_size_MB):
     today = datetime.utcnow().strftime("%Y-%m-%d")
     log = load_user_download_log()
@@ -716,7 +723,7 @@ def log_user_download(IP, archive_size_MB):
 
 
 # ##=========================
-@runtime_report
+
 def extract_timestamp_from_filename(filename):
     """
     Extract YYYY-MM-DDTHHMMSSZ-like timestamp from filename and convert to YYYYMMDDTHHMMSS.
@@ -765,7 +772,9 @@ def check_bundle_summary(bundle_type):
     else:
         file_paths = file_lists[bundle_type]
 
-    total_size_MB = sum(os.path.getsize(f) for f in file_paths if os.path.exists(f)) / (1024 * 1024)
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        sizes = list(executor.map(safe_getsize, file_paths))
+    total_size_MB = sum(sizes) / (1024 * 1024)
 
     ## Get the IP information
     if 'X-Forwarded-For' in request.headers:
@@ -774,7 +783,6 @@ def check_bundle_summary(bundle_type):
     else:
         user_IP = request.remote_addr
 
-    estimated_size_MB = sum(os.path.getsize(f) for f in file_paths if os.path.exists(f)) / (1024 * 1024)
     log = load_user_download_log()
     today = datetime.utcnow().strftime("%Y-%m-%d")
     already_downloaded_MB = log.get(user_IP, {}).get(today, {}).get("size", 0)
@@ -834,7 +842,9 @@ def generate_data_bundle(bundle_type):
     else:
         user_IP = request.remote_addr
 
-    estimated_size_MB = sum(os.path.getsize(f) for f in file_paths if os.path.exists(f)) / (1024 * 1024)
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        sizes = list(executor.map(safe_getsize, file_paths))
+    estimated_size_MB = sum(sizes) / (1024 * 1024)
     allowed, reason = is_user_download_allowed(user_IP, estimated_size_MB, max_downloads=max_IP_downloads_per_day, max_total_MB=max_MB_downloads_per_IP)
     if not allowed:
         return f"Download denied: {reason}", 403
