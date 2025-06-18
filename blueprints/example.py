@@ -15,7 +15,8 @@ from pathlib import Path
 import subprocess
 import tempfile
 from astropy.time import Time
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta
+import time
 from glob import glob
 import shutil
 from imageio import imread
