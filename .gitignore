@@ -46,6 +46,9 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+# Documentation not for upload
+doc-dont-upload/**
+
 # Unit test / coverage reports
 htmlcov/
 .tox/

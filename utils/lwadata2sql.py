@@ -10,6 +10,8 @@ import argparse
 import re
 from astropy.io import fits
 
+beam_data_url = os.getenv('LWA_BEAM_FITS_URL', '/nas7a/beam/allday-fits/')
+
 ##=========================connect to database
 def create_lwa_query_db_connection():
     return mysql.connector.connect(
@@ -121,7 +123,7 @@ def get_path_lwa_files(timerange, file_type="spec"):
     files_collected = []
     if file_type == "spec":
         for year in range(start_1daybf.year, end_1dayaf.year+1):
-            pattern = f"/nas7a/beam/allday-fits/{year}/*.fits"
+            pattern = f"{beam_data_url}/{year}/*.fits"
             files_collected += glob(pattern)
     else:
         # mfs/fch lev1/lev15 HDF files
