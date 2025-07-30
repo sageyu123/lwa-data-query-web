@@ -121,7 +121,7 @@ def get_path_lwa_files(timerange, file_type="spec"):
     files_collected = []
     if file_type == "spec":
         for year in range(start_1daybf.year, end_1dayaf.year+1):
-            pattern = f"/common/lwa/spec/fits/{year}/*.fits"
+            pattern = f"/nas7a/beam/allday-fits/{year}/*.fits"
             files_collected += glob(pattern)
     else:
         # mfs/fch lev1/lev15 HDF files
